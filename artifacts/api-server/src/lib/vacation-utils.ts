@@ -10,11 +10,11 @@ export interface VacationStats {
 /**
  * Calculate vacation statistics for an employee.
  * Rules:
- * - Employees earn 30 days of vacation per year worked
- * - Balance = (years completed * 30) - days already taken
- * - daysUntilNextVacation = days until the next annual period starts
- *   (i.e., days until the next anniversary of hireDate that hasn't
- *   been "claimed" yet)
+ * - Employees earn 30 days of vacation proportional to the time worked.
+ *   balanceDays = floor((daysWorked / 365.25) * 30) - daysTaken
+ * - daysUntilNextVacation = days until the next annual anniversary starting
+ *   from either the hire date or the end date of the last taken vacation
+ *   (i.e., the start of the current accrual period).
  */
 export function calculateVacationStats(
   hireDate: string,
@@ -26,57 +26,74 @@ export function calculateVacationStats(
     Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
   );
 
-  // Years fully worked
-  const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
-  const yearsWorked = Math.floor(
-    (todayUtc.getTime() - hire.getTime()) / msPerYear,
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const todayStr = todayUtc.toISOString().split("T")[0];
+
+  // Days worked since hire date
+  const daysWorked = Math.max(
+    0,
+    Math.round((todayUtc.getTime() - hire.getTime()) / msPerDay),
   );
 
-  // Days earned
-  const daysEarned = yearsWorked * 30;
+  // Days earned proportionally: 30 per year
+  const daysEarned = Math.floor((daysWorked / 365.25) * 30);
 
-  // Days taken (sum of vacation durations)
+  // Days taken (sum of vacation durations for past or ongoing vacations)
   let daysTaken = 0;
   for (const v of vacations) {
     const start = new Date(v.startDate + "T00:00:00Z");
     const end = new Date(v.endDate + "T00:00:00Z");
     const duration =
-      Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) +
-      1;
+      Math.round((end.getTime() - start.getTime()) / msPerDay) + 1;
     daysTaken += Math.max(0, duration);
   }
 
   const vacationBalanceDays = Math.max(0, daysEarned - daysTaken);
 
   // Is on vacation today?
-  const todayStr = todayUtc.toISOString().split("T")[0];
   const isOnVacation = vacations.some(
     (v) => v.startDate <= todayStr && v.endDate >= todayStr,
   );
 
-  // Next vacation start: find the upcoming scheduled vacation start date
+  // Next scheduled vacation start: first upcoming vacation start date
   const futureVacations = vacations
     .filter((v) => v.startDate > todayStr)
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
   const nextVacationStart = futureVacations[0]?.startDate ?? null;
 
-  // Days until next annual period
-  // Find next anniversary of hireDate
+  // daysUntilNextVacation: days until next annual accrual anniversary
+  // Accrual period starts from: end date of last vacation taken, or hire date if none
+  const pastVacations = vacations
+    .filter((v) => v.endDate < todayStr)
+    .sort((a, b) => b.endDate.localeCompare(a.endDate));
+
+  const lastVacationEnd = pastVacations[0]?.endDate ?? null;
+  const accrualStart = lastVacationEnd
+    ? new Date(lastVacationEnd + "T00:00:00Z")
+    : hire;
+
+  // Find the next anniversary of accrualStart
   let nextAnniversary = new Date(
-    Date.UTC(todayUtc.getFullYear(), hire.getUTCMonth(), hire.getUTCDate()),
+    Date.UTC(
+      todayUtc.getFullYear(),
+      accrualStart.getUTCMonth(),
+      accrualStart.getUTCDate(),
+    ),
   );
   if (nextAnniversary <= todayUtc) {
     nextAnniversary = new Date(
-      Date.UTC(todayUtc.getFullYear() + 1, hire.getUTCMonth(), hire.getUTCDate()),
+      Date.UTC(
+        todayUtc.getFullYear() + 1,
+        accrualStart.getUTCMonth(),
+        accrualStart.getUTCDate(),
+      ),
     );
   }
 
   const daysUntilNextVacation = Math.max(
     0,
-    Math.round(
-      (nextAnniversary.getTime() - todayUtc.getTime()) / (24 * 60 * 60 * 1000),
-    ),
+    Math.round((nextAnniversary.getTime() - todayUtc.getTime()) / msPerDay),
   );
 
   return {
