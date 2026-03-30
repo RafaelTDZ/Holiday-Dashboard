@@ -19,6 +19,7 @@ export interface AuthUser {
   lastName: string | null;
   /** @nullable */
   profileImageUrl: string | null;
+  isManager: boolean;
 }
 
 export interface AuthUserEnvelope {
@@ -95,6 +96,20 @@ export interface EmployeeDetail {
 
 export interface ListEmployeesResponse {
   employees: EmployeeWithBalance[];
+}
+
+export interface MyEmployeeEnvelope {
+  employee: EmployeeWithBalance | null;
+}
+
+export interface RegisterEmployeeBody {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  role: string;
+  /** @minLength 1 */
+  department: string;
+  hireDate: string;
 }
 
 export interface CreateEmployeeBody {

@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@workspace/replit-auth-web";
 
 import { Layout } from "./components/layout";
+import { RegistrationGate } from "./components/registration-gate";
 import Dashboard from "./pages/dashboard";
 import EmployeesList from "./pages/employees/index";
 import EmployeeDetail from "./pages/employees/detail";
@@ -20,28 +21,6 @@ const queryClient = new QueryClient({
     }
   }
 });
-
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Login />;
-  }
-
-  return (
-    <Layout>
-      <Component />
-    </Layout>
-  );
-}
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -59,14 +38,16 @@ function Router() {
   }
 
   return (
-    <Layout>
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/employees" component={EmployeesList} />
-        <Route path="/employees/:id" component={EmployeeDetail} />
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+    <RegistrationGate>
+      <Layout>
+        <Switch>
+          <Route path="/" component={Dashboard} />
+          <Route path="/employees" component={EmployeesList} />
+          <Route path="/employees/:id" component={EmployeeDetail} />
+          <Route component={NotFound} />
+        </Switch>
+      </Layout>
+    </RegistrationGate>
   );
 }
 

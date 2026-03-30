@@ -18,6 +18,8 @@ tags:
     description: Vacation management
   - name: dashboard
     description: Dashboard summary
+  - name: me
+    description: Current user profile and self-registration
 paths:
   /healthz:
     get:
@@ -401,6 +403,53 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /me/employee:
+    get:
+      operationId: getMyEmployee
+      tags: [me]
+      summary: Get the employee record linked to the current user
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Employee record or null if not registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyEmployeeEnvelope'
+        '401':
+          description: Unauthorized
+
+    post:
+      operationId: registerAsEmployee
+      tags: [me]
+      summary: Self-register the current user as an employee
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterEmployeeBody'
+      responses:
+        '201':
+          description: Employee registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyEmployeeEnvelope'
+        '400':
+          description: Invalid input or user already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthorized
+
 components:
   parameters:
     AuthorizationSessionHeader:
@@ -429,7 +478,7 @@ components:
 
     AuthUser:
       type: object
-      required: [id, email, firstName, lastName, profileImageUrl]
+      required: [id, email, firstName, lastName, profileImageUrl, isManager]
       properties:
         id:
           type: string
@@ -442,6 +491,8 @@ components:
           type: [string, 'null']
         profileImageUrl:
           type: [string, 'null']
+        isManager:
+          type: boolean
     AuthUserEnvelope:
       type: object
       required: [user]
@@ -560,6 +611,32 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/EmployeeWithBalance"
+
+    MyEmployeeEnvelope:
+      type: object
+      required: [employee]
+      properties:
+        employee:
+          oneOf:
+            - $ref: '#/components/schemas/EmployeeWithBalance'
+            - type: 'null'
+
+    RegisterEmployeeBody:
+      type: object
+      required: [name, role, department, hireDate]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        role:
+          type: string
+          minLength: 1
+        department:
+          type: string
+          minLength: 1
+        hireDate:
+          type: string
+          format: date
 
     CreateEmployeeBody:
       type: object

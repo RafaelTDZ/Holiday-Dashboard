@@ -24,6 +24,8 @@ export * from "./listVacationsResponse";
 export * from "./logoutSuccess";
 export * from "./mobileTokenExchangeRequest";
 export * from "./mobileTokenExchangeSuccess";
+export * from "./myEmployeeEnvelope";
+export * from "./registerEmployeeBody";
 export * from "./upcomingVacation";
 export * from "./updateEmployeeBody";
 export * from "./vacationItem";

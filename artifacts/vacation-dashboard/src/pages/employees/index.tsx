@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
+import { useAuth } from "@workspace/replit-auth-web";
 import { 
   useListEmployees, 
   useCreateEmployee,
@@ -53,6 +54,8 @@ const createEmployeeSchema = z.object({
 });
 
 export default function EmployeesList() {
+  const { user } = useAuth();
+  const isManager = user?.isManager ?? false;
   const { data, isLoading } = useListEmployees();
   const createEmployee = useCreateEmployee();
   const queryClient = useQueryClient();
@@ -108,6 +111,7 @@ export default function EmployeesList() {
           <p className="text-muted-foreground mt-1">Gerencie a equipe e seus saldos de férias.</p>
         </div>
         
+        {isManager && (
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-employee" className="shadow-sm">
@@ -200,6 +204,7 @@ export default function EmployeesList() {
             </Form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <div className="bg-card border shadow-sm rounded-xl overflow-hidden">

@@ -33,6 +33,7 @@ export const GetCurrentAuthUserResponse = zod.object({
       firstName: zod.string().nullable(),
       lastName: zod.string().nullable(),
       profileImageUrl: zod.string().nullable(),
+      isManager: zod.boolean(),
     }),
     zod.null(),
   ]),
@@ -281,4 +282,55 @@ export const GetDashboardSummaryResponse = zod.object({
       onVacation: zod.number(),
     }),
   ),
+});
+
+/**
+ * @summary Get the employee record linked to the current user
+ */
+export const GetMyEmployeeHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const GetMyEmployeeResponse = zod.object({
+  employee: zod.union([
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      role: zod.string(),
+      department: zod.string(),
+      hireDate: zod.coerce.date(),
+      createdAt: zod.coerce.date(),
+      vacationBalanceDays: zod
+        .number()
+        .describe("Available vacation days (earned - taken)"),
+      daysUntilNextVacation: zod
+        .number()
+        .describe(
+          "Days until next vacation period starts (or 0 if vacation is now due)",
+        ),
+      isOnVacation: zod.boolean(),
+      nextVacationStart: zod.coerce.date().nullable(),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
+ * @summary Self-register the current user as an employee
+ */
+export const RegisterAsEmployeeHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const RegisterAsEmployeeBody = zod.object({
+  name: zod.string().min(1),
+  role: zod.string().min(1),
+  department: zod.string().min(1),
+  hireDate: zod.coerce.date(),
 });

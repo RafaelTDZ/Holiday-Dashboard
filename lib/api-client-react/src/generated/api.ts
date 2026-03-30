@@ -31,6 +31,8 @@ import type {
   LogoutSuccess,
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
+  MyEmployeeEnvelope,
+  RegisterEmployeeBody,
   UpdateEmployeeBody,
   VacationItem,
 } from "./api.schemas";
@@ -1396,3 +1398,164 @@ export function useGetDashboardSummary<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get the employee record linked to the current user
+ */
+export const getGetMyEmployeeUrl = () => {
+  return `/api/me/employee`;
+};
+
+export const getMyEmployee = async (
+  options?: RequestInit,
+): Promise<MyEmployeeEnvelope> => {
+  return customFetch<MyEmployeeEnvelope>(getGetMyEmployeeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyEmployeeQueryKey = () => {
+  return [`/api/me/employee`] as const;
+};
+
+export const getGetMyEmployeeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyEmployee>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyEmployee>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyEmployeeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyEmployee>>> = ({
+    signal,
+  }) => getMyEmployee({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyEmployee>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyEmployeeQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyEmployee>>
+>;
+export type GetMyEmployeeQueryError = ErrorType<void>;
+
+/**
+ * @summary Get the employee record linked to the current user
+ */
+
+export function useGetMyEmployee<
+  TData = Awaited<ReturnType<typeof getMyEmployee>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyEmployee>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyEmployeeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Self-register the current user as an employee
+ */
+export const getRegisterAsEmployeeUrl = () => {
+  return `/api/me/employee`;
+};
+
+export const registerAsEmployee = async (
+  registerEmployeeBody: RegisterEmployeeBody,
+  options?: RequestInit,
+): Promise<MyEmployeeEnvelope> => {
+  return customFetch<MyEmployeeEnvelope>(getRegisterAsEmployeeUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(registerEmployeeBody),
+  });
+};
+
+export const getRegisterAsEmployeeMutationOptions = <
+  TError = ErrorType<ErrorEnvelope | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerAsEmployee>>,
+    TError,
+    { data: BodyType<RegisterEmployeeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registerAsEmployee>>,
+  TError,
+  { data: BodyType<RegisterEmployeeBody> },
+  TContext
+> => {
+  const mutationKey = ["registerAsEmployee"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registerAsEmployee>>,
+    { data: BodyType<RegisterEmployeeBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return registerAsEmployee(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegisterAsEmployeeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registerAsEmployee>>
+>;
+export type RegisterAsEmployeeMutationBody = BodyType<RegisterEmployeeBody>;
+export type RegisterAsEmployeeMutationError = ErrorType<ErrorEnvelope | void>;
+
+/**
+ * @summary Self-register the current user as an employee
+ */
+export const useRegisterAsEmployee = <
+  TError = ErrorType<ErrorEnvelope | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerAsEmployee>>,
+    TError,
+    { data: BodyType<RegisterEmployeeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof registerAsEmployee>>,
+  TError,
+  { data: BodyType<RegisterEmployeeBody> },
+  TContext
+> => {
+  return useMutation(getRegisterAsEmployeeMutationOptions(options));
+};
