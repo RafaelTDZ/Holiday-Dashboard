@@ -9,6 +9,7 @@ export const vacationsTable = pgTable("vacations", {
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
   notes: text("notes"),
+  status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

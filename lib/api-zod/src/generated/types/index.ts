@@ -28,4 +28,7 @@ export * from "./myEmployeeEnvelope";
 export * from "./registerEmployeeBody";
 export * from "./upcomingVacation";
 export * from "./updateEmployeeBody";
+export * from "./updateVacationStatusBody";
+export * from "./updateVacationStatusBodyStatus";
 export * from "./vacationItem";
+export * from "./vacationItemStatus";

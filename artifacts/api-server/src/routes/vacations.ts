@@ -34,6 +34,7 @@ router.get(
       endDate: v.endDate,
       durationDays: vacationDurationDays(v.startDate, v.endDate),
       notes: v.notes,
+      status: v.status,
       createdAt: v.createdAt,
     }));
 
@@ -73,7 +74,6 @@ router.post(
 
     const { startDate: startDateRaw, endDate: endDateRaw, notes } = parsed.data;
 
-    // Zod coerce.date() produces Date objects; convert to YYYY-MM-DD strings
     const toDateStr = (d: Date | string): string => {
       if (typeof d === "string") return d;
       return d.toISOString().split("T")[0];
@@ -89,7 +89,7 @@ router.post(
 
     const [vacation] = await db
       .insert(vacationsTable)
-      .values({ employeeId, startDate, endDate, notes: notes ?? null })
+      .values({ employeeId, startDate, endDate, notes: notes ?? null, status: "pending" })
       .returning();
 
     res.status(201).json({
@@ -99,6 +99,56 @@ router.post(
       endDate: vacation.endDate,
       durationDays: vacationDurationDays(vacation.startDate, vacation.endDate),
       notes: vacation.notes,
+      status: vacation.status,
+      createdAt: vacation.createdAt,
+    });
+  },
+);
+
+router.put(
+  "/vacations/:id/status",
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    if (!req.user!.isManager) {
+      res.status(403).json({ error: "Apenas gestores podem aprovar ou reprovar férias." });
+      return;
+    }
+
+    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const id = parseInt(rawId, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid vacation ID" });
+      return;
+    }
+
+    const { status } = req.body;
+    if (status !== "approved" && status !== "rejected") {
+      res.status(400).json({ error: "Status deve ser 'approved' ou 'rejected'." });
+      return;
+    }
+
+    const [vacation] = await db
+      .update(vacationsTable)
+      .set({ status })
+      .where(eq(vacationsTable.id, id))
+      .returning();
+
+    if (!vacation) {
+      res.status(404).json({ error: "Vacation not found" });
+      return;
+    }
+
+    res.json({
+      id: vacation.id,
+      employeeId: vacation.employeeId,
+      startDate: vacation.startDate,
+      endDate: vacation.endDate,
+      durationDays: vacationDurationDays(vacation.startDate, vacation.endDate),
+      notes: vacation.notes,
+      status: vacation.status,
       createdAt: vacation.createdAt,
     });
   },

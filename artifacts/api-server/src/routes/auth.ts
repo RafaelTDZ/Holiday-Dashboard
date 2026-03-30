@@ -6,6 +6,7 @@ import {
   ExchangeMobileAuthorizationCodeResponse,
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
+import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import {
   clearSession,
@@ -82,12 +83,16 @@ async function upsertUser(claims: Record<string, unknown>) {
   return user;
 }
 
-router.get("/auth/user", (req: Request, res: Response) => {
-  res.json(
-    GetCurrentAuthUserResponse.parse({
-      user: req.isAuthenticated() ? req.user : null,
-    }),
-  );
+router.get("/auth/user", async (req: Request, res: Response) => {
+  if (!req.isAuthenticated()) {
+    res.json(GetCurrentAuthUserResponse.parse({ user: null }));
+    return;
+  }
+  const [dbUser] = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.id));
+  const user = dbUser
+    ? { ...req.user, isManager: dbUser.isManager }
+    : req.user;
+  res.json(GetCurrentAuthUserResponse.parse({ user }));
 });
 
 router.get("/login", async (req: Request, res: Response) => {

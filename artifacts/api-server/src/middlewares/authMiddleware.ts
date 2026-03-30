@@ -1,5 +1,7 @@
 import * as oidc from "openid-client";
 import { type Request, type Response, type NextFunction } from "express";
+import { eq } from "drizzle-orm";
+import { db, usersTable } from "@workspace/db";
 import type { AuthUser } from "../types/auth";
 import {
   clearSession,
@@ -82,6 +84,11 @@ export async function authMiddleware(
     return;
   }
 
-  req.user = refreshed.user;
+  const [dbUser] = await db
+    .select({ isManager: usersTable.isManager })
+    .from(usersTable)
+    .where(eq(usersTable.id, refreshed.user.id));
+
+  req.user = dbUser ? { ...refreshed.user, isManager: dbUser.isManager } : refreshed.user;
   next();
 }

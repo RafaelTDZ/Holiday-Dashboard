@@ -403,6 +403,45 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /vacations/{id}/status:
+    put:
+      operationId: updateVacationStatus
+      tags: [vacations]
+      summary: Approve or reject a vacation request (managers only)
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVacationStatusBody'
+      responses:
+        '200':
+          description: Vacation status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VacationItem'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - manager role required
+        '404':
+          description: Vacation not found
+
   /me/employee:
     get:
       operationId: getMyEmployee
@@ -673,7 +712,7 @@ components:
 
     VacationItem:
       type: object
-      required: [id, employeeId, startDate, endDate, durationDays, notes, createdAt]
+      required: [id, employeeId, startDate, endDate, durationDays, notes, status, createdAt]
       properties:
         id:
           type: integer
@@ -689,6 +728,9 @@ components:
           type: integer
         notes:
           type: [string, 'null']
+        status:
+          type: string
+          enum: [pending, approved, rejected]
         createdAt:
           type: string
           format: date-time
@@ -701,6 +743,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/VacationItem"
+
+    UpdateVacationStatusBody:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected]
 
     CreateVacationBody:
       type: object

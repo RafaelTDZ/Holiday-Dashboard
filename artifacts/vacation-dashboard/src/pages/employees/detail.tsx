@@ -6,23 +6,23 @@ import {
   useDeleteEmployee,
   useCreateVacation,
   useDeleteVacation,
+  useUpdateVacationStatus,
   getGetEmployeeQueryKey,
   getListEmployeesQueryKey,
   getGetDashboardSummaryQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO, differenceInDays } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useAuth } from "@workspace/replit-auth-web";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -62,7 +62,9 @@ import {
   Plane,
   Trash2,
   Edit,
-  Clock
+  Clock,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 
 const updateEmployeeSchema = z.object({
@@ -81,12 +83,24 @@ const createVacationSchema = z.object({
   path: ["endDate"]
 });
 
+function VacationStatusBadge({ status }: { status: string }) {
+  if (status === "approved") {
+    return <Badge className="bg-green-500 hover:bg-green-600 text-white text-xs">Aprovado</Badge>;
+  }
+  if (status === "rejected") {
+    return <Badge variant="destructive" className="text-xs">Reprovado</Badge>;
+  }
+  return <Badge variant="outline" className="text-yellow-600 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 text-xs">Pendente</Badge>;
+}
+
 export default function EmployeeDetail() {
   const { id } = useParams();
   const employeeId = Number(id);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isManager = user?.isManager ?? false;
 
   const { data: employee, isLoading, error } = useGetEmployee(employeeId, {
     query: { enabled: !!employeeId, queryKey: getGetEmployeeQueryKey(employeeId) }
@@ -96,6 +110,7 @@ export default function EmployeeDetail() {
   const deleteEmployee = useDeleteEmployee();
   const createVacation = useCreateVacation();
   const deleteVacation = useDeleteVacation();
+  const updateVacationStatus = useUpdateVacationStatus();
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isVacationOpen, setIsVacationOpen] = useState(false);
@@ -119,7 +134,6 @@ export default function EmployeeDetail() {
     },
   });
 
-  // Re-initialize form when data loads
   if (employee && editForm.getValues("name") === "" && !isEditOpen) {
     editForm.reset({
       name: employee.name,
@@ -151,12 +165,12 @@ export default function EmployeeDetail() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employeeId) });
         queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-        toast({ title: "Férias agendadas com sucesso" });
+        toast({ title: "Férias solicitadas", description: "Aguardando aprovação do gestor." });
         setIsVacationOpen(false);
         vacationForm.reset();
       },
       onError: (err) => {
-        toast({ variant: "destructive", title: "Erro ao agendar férias", description: err.data?.error ?? err.message });
+        toast({ variant: "destructive", title: "Erro ao solicitar férias", description: err.data?.error ?? err.message });
       }
     });
   };
@@ -184,6 +198,25 @@ export default function EmployeeDetail() {
       },
       onError: (err) => {
         toast({ variant: "destructive", title: "Erro ao cancelar", description: err.data?.error ?? err.message });
+      }
+    });
+  };
+
+  const handleVacationStatus = (vacationId: number, status: "approved" | "rejected") => {
+    updateVacationStatus.mutate({ id: vacationId, data: { status } }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employeeId) });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
+        toast({ 
+          title: status === "approved" ? "Férias aprovadas" : "Férias reprovadas",
+          description: status === "approved" 
+            ? "O período de férias foi aprovado com sucesso." 
+            : "O período de férias foi reprovado."
+        });
+      },
+      onError: (err) => {
+        toast({ variant: "destructive", title: "Erro", description: err.data?.error ?? err.message });
       }
     });
   };
@@ -264,95 +297,97 @@ export default function EmployeeDetail() {
               </div>
             </div>
 
-            <div className="pt-4 grid grid-cols-2 gap-2">
-              <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-full" data-testid="button-edit-employee">
-                    <Edit className="w-4 h-4 mr-2" /> Editar
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Editar Funcionário</DialogTitle>
-                    <DialogDescription>Altere as informações de {employee.name}.</DialogDescription>
-                  </DialogHeader>
-                  <Form {...editForm}>
-                    <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4 pt-4">
-                      <FormField
-                        control={editForm.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={editForm.control}
-                        name="role"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Cargo</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={editForm.control}
-                        name="department"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Departamento</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={editForm.control}
-                        name="hireDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Data de Admissão</FormLabel>
-                            <FormControl><Input type="date" {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-                        <Button type="submit" disabled={updateEmployee.isPending}>Salvar</Button>
-                      </DialogFooter>
-                    </form>
-                  </Form>
-                </DialogContent>
-              </Dialog>
+            {isManager && (
+              <div className="pt-4 grid grid-cols-2 gap-2">
+                <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full" data-testid="button-edit-employee">
+                      <Edit className="w-4 h-4 mr-2" /> Editar
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Editar Funcionário</DialogTitle>
+                      <DialogDescription>Altere as informações de {employee.name}.</DialogDescription>
+                    </DialogHeader>
+                    <Form {...editForm}>
+                      <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4 pt-4">
+                        <FormField
+                          control={editForm.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nome</FormLabel>
+                              <FormControl><Input {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={editForm.control}
+                          name="role"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Cargo</FormLabel>
+                              <FormControl><Input {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={editForm.control}
+                          name="department"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Departamento</FormLabel>
+                              <FormControl><Input {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={editForm.control}
+                          name="hireDate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Data de Admissão</FormLabel>
+                              <FormControl><Input type="date" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <DialogFooter>
+                          <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
+                          <Button type="submit" disabled={updateEmployee.isPending}>Salvar</Button>
+                        </DialogFooter>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
 
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" className="w-full" data-testid="button-delete-employee">
-                    <Trash2 className="w-4 h-4 mr-2" /> Excluir
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Excluir funcionário?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta ação não pode ser desfeita. Todos os registros de férias de {employee.name} serão removidos permanentemente.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteEmployee} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                      Sim, excluir
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="w-full" data-testid="button-delete-employee">
+                      <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir funcionário?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação não pode ser desfeita. Todos os registros de férias de {employee.name} serão removidos permanentemente.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteEmployee} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                        Sim, excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -362,18 +397,18 @@ export default function EmployeeDetail() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Histórico de Férias</CardTitle>
-                <CardDescription>Períodos de descanso registrados</CardDescription>
+                <CardDescription>Períodos registrados e seus status de aprovação</CardDescription>
               </div>
               <Dialog open={isVacationOpen} onOpenChange={setIsVacationOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" data-testid="button-add-vacation">
                     <Plane className="w-4 h-4 mr-2" />
-                    Agendar Férias
+                    Solicitar Férias
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Agendar Férias</DialogTitle>
+                    <DialogTitle>Solicitar Férias</DialogTitle>
                     <DialogDescription>
                       Defina o período de descanso para {employee.name}. Saldo disponível: <strong className="text-foreground">{employee.vacationBalanceDays.toFixed(1)} dias</strong>
                     </DialogDescription>
@@ -405,7 +440,6 @@ export default function EmployeeDetail() {
                         />
                       </div>
                       
-                      {/* Calculate duration preview */}
                       {vacationForm.watch('startDate') && vacationForm.watch('endDate') && 
                        !isNaN(Date.parse(vacationForm.watch('startDate'))) && !isNaN(Date.parse(vacationForm.watch('endDate'))) && 
                        new Date(vacationForm.watch('endDate')) >= new Date(vacationForm.watch('startDate')) && (
@@ -431,7 +465,7 @@ export default function EmployeeDetail() {
                       <DialogFooter className="pt-2">
                         <Button type="button" variant="outline" onClick={() => setIsVacationOpen(false)}>Cancelar</Button>
                         <Button type="submit" disabled={createVacation.isPending} data-testid="button-submit-vacation">
-                          Confirmar
+                          Solicitar
                         </Button>
                       </DialogFooter>
                     </form>
@@ -445,56 +479,93 @@ export default function EmployeeDetail() {
                   <Plane className="h-12 w-12 text-muted-foreground/30 mb-4" />
                   <h3 className="text-lg font-medium">Nenhum registro</h3>
                   <p className="text-sm text-muted-foreground max-w-sm mt-1">
-                    Este funcionário ainda não possui períodos de férias agendados ou concluídos.
+                    Este funcionário ainda não possui períodos de férias solicitados.
                   </p>
                   <Button variant="outline" className="mt-6" onClick={() => setIsVacationOpen(true)}>
-                    Agendar primeiro período
+                    Solicitar primeiro período
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
-                  {employee.vacations.map((vacation, idx) => {
+                  {employee.vacations.map((vacation) => {
                     const isUpcoming = new Date(vacation.startDate) > new Date();
                     const isCurrent = new Date(vacation.startDate) <= new Date() && new Date(vacation.endDate) >= new Date();
+                    const isPending = vacation.status === "pending";
+                    const isApproved = vacation.status === "approved";
                     
                     return (
                       <div key={vacation.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
                         <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-background bg-card shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                          {isUpcoming ? (
-                            <Calendar className="h-4 w-4 text-blue-500" />
-                          ) : isCurrent ? (
+                          {isApproved && isCurrent ? (
                             <Plane className="h-4 w-4 text-teal-500" />
+                          ) : isApproved && isUpcoming ? (
+                            <Calendar className="h-4 w-4 text-blue-500" />
+                          ) : isPending ? (
+                            <Clock className="h-4 w-4 text-yellow-500" />
                           ) : (
                             <Clock className="h-4 w-4 text-muted-foreground" />
                           )}
                         </div>
                         <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border bg-card shadow-sm hover:shadow transition-shadow ml-4 md:ml-0">
-                          <div className="flex items-start justify-between mb-2">
-                            <Badge variant={isCurrent ? "default" : isUpcoming ? "secondary" : "outline"} 
-                                  className={isCurrent ? "bg-teal-500 hover:bg-teal-600" : isUpcoming ? "bg-blue-100 text-blue-700" : ""}>
-                              {isCurrent ? "Em Andamento" : isUpcoming ? "Agendado" : "Concluído"}
-                            </Badge>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Cancelar férias?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Deseja remover este período de férias de {vacation.durationDays} dias? O saldo do funcionário será recalculado.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Voltar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteVacation(vacation.id)} className="bg-destructive text-destructive-foreground">
-                                    Sim, cancelar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                          <div className="flex items-start justify-between mb-2 gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant={isApproved && isCurrent ? "default" : isApproved && isUpcoming ? "secondary" : "outline"} 
+                                    className={isApproved && isCurrent ? "bg-teal-500 hover:bg-teal-600 text-xs" : isApproved && isUpcoming ? "bg-blue-100 text-blue-700 text-xs" : "text-xs"}>
+                                {isApproved && isCurrent ? "Em Andamento" : isApproved && isUpcoming ? "Agendado" : isApproved ? "Concluído" : ""}
+                              </Badge>
+                              <VacationStatusBadge status={vacation.status} />
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {isManager && isPending && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    title="Aprovar férias"
+                                    data-testid={`button-approve-vacation-${vacation.id}`}
+                                    onClick={() => handleVacationStatus(vacation.id, "approved")}
+                                    disabled={updateVacationStatus.isPending}
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                    title="Reprovar férias"
+                                    data-testid={`button-reject-vacation-${vacation.id}`}
+                                    onClick={() => handleVacationStatus(vacation.id, "rejected")}
+                                    disabled={updateVacationStatus.isPending}
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                              {isManager && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Cancelar férias?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Deseja remover este período de férias de {vacation.durationDays} dias? O saldo do funcionário será recalculado.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Voltar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteVacation(vacation.id)} className="bg-destructive text-destructive-foreground">
+                                        Sim, cancelar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
                           </div>
                           <div className="text-lg font-bold">
                             {vacation.durationDays} dias
@@ -505,9 +576,7 @@ export default function EmployeeDetail() {
                             <span>{format(parseISO(vacation.endDate), "dd/MM/yyyy")}</span>
                           </div>
                           {vacation.notes && (
-                            <div className="mt-3 pt-3 border-t text-sm text-muted-foreground italic">
-                              "{vacation.notes}"
-                            </div>
+                            <p className="text-xs text-muted-foreground mt-2 italic border-t pt-2">"{vacation.notes}"</p>
                           )}
                         </div>
                       </div>

@@ -107,6 +107,7 @@ router.get("/employees/:id", async (req: Request, res: Response): Promise<void> 
     endDate: v.endDate,
     durationDays: vacationDurationDays(v.startDate, v.endDate),
     notes: v.notes,
+    status: v.status,
     createdAt: v.createdAt,
   }));
 
@@ -120,6 +121,10 @@ router.get("/employees/:id", async (req: Request, res: Response): Promise<void> 
 router.put("/employees/:id", async (req: Request, res: Response): Promise<void> => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  if (!req.user!.isManager) {
+    res.status(403).json({ error: "Apenas gestores podem editar funcionários." });
     return;
   }
 
@@ -175,6 +180,7 @@ router.put("/employees/:id", async (req: Request, res: Response): Promise<void> 
     endDate: v.endDate,
     durationDays: vacationDurationDays(v.startDate, v.endDate),
     notes: v.notes,
+    status: v.status,
     createdAt: v.createdAt,
   }));
 
@@ -188,6 +194,10 @@ router.put("/employees/:id", async (req: Request, res: Response): Promise<void> 
 router.delete("/employees/:id", async (req: Request, res: Response): Promise<void> => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  if (!req.user!.isManager) {
+    res.status(403).json({ error: "Apenas gestores podem excluir funcionários." });
     return;
   }
 

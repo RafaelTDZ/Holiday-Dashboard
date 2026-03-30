@@ -163,6 +163,7 @@ export const GetEmployeeResponse = zod.object({
       endDate: zod.coerce.date(),
       durationDays: zod.number(),
       notes: zod.string().nullable(),
+      status: zod.enum(["pending", "approved", "rejected"]),
       createdAt: zod.coerce.date(),
     }),
   ),
@@ -201,6 +202,7 @@ export const UpdateEmployeeResponse = zod.object({
       endDate: zod.coerce.date(),
       durationDays: zod.number(),
       notes: zod.string().nullable(),
+      status: zod.enum(["pending", "approved", "rejected"]),
       createdAt: zod.coerce.date(),
     }),
   ),
@@ -229,6 +231,7 @@ export const ListEmployeeVacationsResponse = zod.object({
       endDate: zod.coerce.date(),
       durationDays: zod.number(),
       notes: zod.string().nullable(),
+      status: zod.enum(["pending", "approved", "rejected"]),
       createdAt: zod.coerce.date(),
     }),
   ),
@@ -282,6 +285,35 @@ export const GetDashboardSummaryResponse = zod.object({
       onVacation: zod.number(),
     }),
   ),
+});
+
+/**
+ * @summary Approve or reject a vacation request (managers only)
+ */
+export const UpdateVacationStatusParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateVacationStatusHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const UpdateVacationStatusBody = zod.object({
+  status: zod.enum(["approved", "rejected"]),
+});
+
+export const UpdateVacationStatusResponse = zod.object({
+  id: zod.number(),
+  employeeId: zod.number(),
+  startDate: zod.coerce.date(),
+  endDate: zod.coerce.date(),
+  durationDays: zod.number(),
+  notes: zod.string().nullable(),
+  status: zod.enum(["pending", "approved", "rejected"]),
+  createdAt: zod.coerce.date(),
 });
 
 /**

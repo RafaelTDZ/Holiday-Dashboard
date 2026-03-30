@@ -22,11 +22,14 @@ HR vacation management dashboard with Replit Auth login protection. HR managers 
 
 **Features:**
 - Replit Auth (OIDC/PKCE) — protected routes, no custom login forms
-- Add/edit/delete employees (name, role, department, hire date)
-- Register/delete vacation periods per employee (start date, end date, notes)
+- Self-registration: first-time users link their Replit account to an employee record
+- Add/edit/delete employees (name, role, department, hire date) — managers only
+- Vacation request workflow: employees/managers request vacations (status: pending → approved/rejected)
+- Vacation approval: managers see approve/reject buttons on pending vacations; balance only counts approved
 - Countdown of days until next annual vacation period
 - Dashboard overview: employees on vacation today, upcoming vacations, department breakdown
-- Vacation balance: 30 days/completed year - days taken
+- Vacation balance: 30 days/completed year − approved days taken
+- isManager flag read fresh from DB on every request (no stale session issues)
 
 **Vacation balance rule:** `balanceDays = floor(yearsWorked) * 30 - daysTaken`
 

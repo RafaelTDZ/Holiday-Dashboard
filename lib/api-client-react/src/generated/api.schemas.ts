@@ -68,6 +68,15 @@ export interface EmployeeWithBalance {
   nextVacationStart: string | null;
 }
 
+export type VacationItemStatus =
+  (typeof VacationItemStatus)[keyof typeof VacationItemStatus];
+
+export const VacationItemStatus = {
+  pending: "pending",
+  approved: "approved",
+  rejected: "rejected",
+} as const;
+
 export interface VacationItem {
   id: number;
   employeeId: number;
@@ -76,6 +85,7 @@ export interface VacationItem {
   durationDays: number;
   /** @nullable */
   notes: string | null;
+  status: VacationItemStatus;
   createdAt: string;
 }
 
@@ -134,6 +144,18 @@ export interface UpdateEmployeeBody {
 
 export interface ListVacationsResponse {
   vacations: VacationItem[];
+}
+
+export type UpdateVacationStatusBodyStatus =
+  (typeof UpdateVacationStatusBodyStatus)[keyof typeof UpdateVacationStatusBodyStatus];
+
+export const UpdateVacationStatusBodyStatus = {
+  approved: "approved",
+  rejected: "rejected",
+} as const;
+
+export interface UpdateVacationStatusBody {
+  status: UpdateVacationStatusBodyStatus;
 }
 
 export interface CreateVacationBody {

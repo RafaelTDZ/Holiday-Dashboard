@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { VacationItemStatus } from "./vacationItemStatus";
 
 export interface VacationItem {
   id: number;
@@ -14,5 +15,6 @@ export interface VacationItem {
   durationDays: number;
   /** @nullable */
   notes: string | null;
+  status: VacationItemStatus;
   createdAt: Date;
 }

@@ -34,6 +34,7 @@ import type {
   MyEmployeeEnvelope,
   RegisterEmployeeBody,
   UpdateEmployeeBody,
+  UpdateVacationStatusBody,
   VacationItem,
 } from "./api.schemas";
 
@@ -1398,6 +1399,94 @@ export function useGetDashboardSummary<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Approve or reject a vacation request (managers only)
+ */
+export const getUpdateVacationStatusUrl = (id: number) => {
+  return `/api/vacations/${id}/status`;
+};
+
+export const updateVacationStatus = async (
+  id: number,
+  updateVacationStatusBody: UpdateVacationStatusBody,
+  options?: RequestInit,
+): Promise<VacationItem> => {
+  return customFetch<VacationItem>(getUpdateVacationStatusUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateVacationStatusBody),
+  });
+};
+
+export const getUpdateVacationStatusMutationOptions = <
+  TError = ErrorType<ErrorEnvelope | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateVacationStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdateVacationStatusBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateVacationStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdateVacationStatusBody> },
+  TContext
+> => {
+  const mutationKey = ["updateVacationStatus"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateVacationStatus>>,
+    { id: number; data: BodyType<UpdateVacationStatusBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateVacationStatus(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateVacationStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateVacationStatus>>
+>;
+export type UpdateVacationStatusMutationBody =
+  BodyType<UpdateVacationStatusBody>;
+export type UpdateVacationStatusMutationError = ErrorType<ErrorEnvelope | void>;
+
+/**
+ * @summary Approve or reject a vacation request (managers only)
+ */
+export const useUpdateVacationStatus = <
+  TError = ErrorType<ErrorEnvelope | void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateVacationStatus>>,
+    TError,
+    { id: number; data: BodyType<UpdateVacationStatusBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateVacationStatus>>,
+  TError,
+  { id: number; data: BodyType<UpdateVacationStatusBody> },
+  TContext
+> => {
+  return useMutation(getUpdateVacationStatusMutationOptions(options));
+};
 
 /**
  * @summary Get the employee record linked to the current user

@@ -12,13 +12,13 @@ export interface VacationStats {
  * Rules:
  * - Employees earn 30 days of vacation proportional to the time worked.
  *   balanceDays = floor((daysWorked / 365.25) * 30) - daysTaken
+ * - Only APPROVED vacations count toward balance and isOnVacation.
  * - daysUntilNextVacation = days until the next annual anniversary starting
- *   from either the hire date or the end date of the last taken vacation
- *   (i.e., the start of the current accrual period).
+ *   from either the hire date or the end date of the last approved vacation.
  */
 export function calculateVacationStats(
   hireDate: string,
-  vacations: Pick<Vacation, "startDate" | "endDate">[],
+  vacations: Pick<Vacation, "startDate" | "endDate" | "status">[],
   today: Date = new Date(),
 ): VacationStats {
   const hire = new Date(hireDate + "T00:00:00Z");
@@ -29,6 +29,9 @@ export function calculateVacationStats(
   const msPerDay = 24 * 60 * 60 * 1000;
   const todayStr = todayUtc.toISOString().split("T")[0];
 
+  // Only approved vacations count for balance calculations
+  const approvedVacations = vacations.filter((v) => v.status === "approved");
+
   // Days worked since hire date
   const daysWorked = Math.max(
     0,
@@ -38,9 +41,9 @@ export function calculateVacationStats(
   // Days earned proportionally: 30 per year
   const daysEarned = Math.floor((daysWorked / 365.25) * 30);
 
-  // Days taken: only count past and currently ongoing vacations (not future ones)
+  // Days taken: only count past and currently ongoing APPROVED vacations (not future ones)
   let daysTaken = 0;
-  for (const v of vacations) {
+  for (const v of approvedVacations) {
     if (v.startDate > todayStr) continue; // skip future vacations
     const start = new Date(v.startDate + "T00:00:00Z");
     const end = new Date(v.endDate + "T00:00:00Z");
@@ -51,21 +54,21 @@ export function calculateVacationStats(
 
   const vacationBalanceDays = Math.max(0, daysEarned - daysTaken);
 
-  // Is on vacation today?
-  const isOnVacation = vacations.some(
+  // Is on vacation today? (approved only)
+  const isOnVacation = approvedVacations.some(
     (v) => v.startDate <= todayStr && v.endDate >= todayStr,
   );
 
-  // Next scheduled vacation start: first upcoming vacation start date
-  const futureVacations = vacations
+  // Next scheduled vacation start: first upcoming APPROVED vacation
+  const futureVacations = approvedVacations
     .filter((v) => v.startDate > todayStr)
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
   const nextVacationStart = futureVacations[0]?.startDate ?? null;
 
   // daysUntilNextVacation: days until next annual accrual anniversary
-  // Accrual period starts from: end date of last vacation taken, or hire date if none
-  const pastVacations = vacations
+  // Accrual period starts from: end date of last approved vacation taken, or hire date if none
+  const pastVacations = approvedVacations
     .filter((v) => v.endDate < todayStr)
     .sort((a, b) => b.endDate.localeCompare(a.endDate));
 
