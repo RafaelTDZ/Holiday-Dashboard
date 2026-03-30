@@ -138,7 +138,7 @@ export default function EmployeeDetail() {
         setIsEditOpen(false);
       },
       onError: (err) => {
-        toast({ variant: "destructive", title: "Erro ao atualizar", description: err.error });
+        toast({ variant: "destructive", title: "Erro ao atualizar", description: err.data?.error ?? err.message });
       }
     });
   };
@@ -156,7 +156,7 @@ export default function EmployeeDetail() {
         vacationForm.reset();
       },
       onError: (err) => {
-        toast({ variant: "destructive", title: "Erro ao agendar férias", description: err.error });
+        toast({ variant: "destructive", title: "Erro ao agendar férias", description: err.data?.error ?? err.message });
       }
     });
   };
@@ -170,7 +170,7 @@ export default function EmployeeDetail() {
         setLocation("/employees");
       },
       onError: (err) => {
-        toast({ variant: "destructive", title: "Erro ao excluir", description: err.error });
+        toast({ variant: "destructive", title: "Erro ao excluir", description: err.data?.error ?? err.message });
       }
     });
   };
@@ -183,7 +183,7 @@ export default function EmployeeDetail() {
         toast({ title: "Período de férias cancelado" });
       },
       onError: (err) => {
-        toast({ variant: "destructive", title: "Erro ao cancelar", description: err.error });
+        toast({ variant: "destructive", title: "Erro ao cancelar", description: err.data?.error ?? err.message });
       }
     });
   };

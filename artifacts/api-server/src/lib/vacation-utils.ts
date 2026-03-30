@@ -38,9 +38,10 @@ export function calculateVacationStats(
   // Days earned proportionally: 30 per year
   const daysEarned = Math.floor((daysWorked / 365.25) * 30);
 
-  // Days taken (sum of vacation durations for past or ongoing vacations)
+  // Days taken: only count past and currently ongoing vacations (not future ones)
   let daysTaken = 0;
   for (const v of vacations) {
+    if (v.startDate > todayStr) continue; // skip future vacations
     const start = new Date(v.startDate + "T00:00:00Z");
     const end = new Date(v.endDate + "T00:00:00Z");
     const duration =

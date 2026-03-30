@@ -88,7 +88,7 @@ export default function EmployeesList() {
         toast({
           variant: "destructive",
           title: "Erro ao adicionar",
-          description: err.error || "Ocorreu um erro inesperado.",
+          description: err.data?.error ?? err.message ?? "Ocorreu um erro inesperado.",
         });
       }
     });

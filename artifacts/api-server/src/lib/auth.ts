@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { type Request, type Response } from "express";
 import { db, sessionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import type { AuthUser } from "@workspace/api-zod";
+import type { AuthUser } from "../types/auth";
 
 export const ISSUER_URL = process.env.ISSUER_URL ?? "https://replit.com/oidc";
 export const SESSION_COOKIE = "sid";

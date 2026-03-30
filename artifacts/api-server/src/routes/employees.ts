@@ -136,8 +136,15 @@ router.put("/employees/:id", async (req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const updateData = {
-    ...parsed.data,
+  const updateData: {
+    name?: string;
+    role?: string;
+    department?: string;
+    hireDate?: string;
+  } = {
+    ...(parsed.data.name !== undefined && { name: parsed.data.name }),
+    ...(parsed.data.role !== undefined && { role: parsed.data.role }),
+    ...(parsed.data.department !== undefined && { department: parsed.data.department }),
     ...(parsed.data.hireDate !== undefined && {
       hireDate: toDateStr(parsed.data.hireDate as Date | string),
     }),
