@@ -8,3 +8,164 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface AuthUser {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  /** @nullable */
+  profileImageUrl: string | null;
+}
+
+export interface AuthUserEnvelope {
+  user: AuthUser | null;
+}
+
+export interface MobileTokenExchangeRequest {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  code_verifier: string;
+  /** @minLength 1 */
+  redirect_uri: string;
+  /** @minLength 1 */
+  state: string;
+  /** @minLength 1 */
+  nonce?: string;
+}
+
+export interface MobileTokenExchangeSuccess {
+  token: string;
+}
+
+export const LogoutSuccessValue = {
+  success: true,
+} as const;
+export type LogoutSuccess = typeof LogoutSuccessValue;
+
+export interface ErrorEnvelope {
+  error: string;
+}
+
+export interface EmployeeWithBalance {
+  id: number;
+  name: string;
+  role: string;
+  department: string;
+  hireDate: string;
+  createdAt: string;
+  /** Available vacation days (earned - taken) */
+  vacationBalanceDays: number;
+  /** Days until next vacation period starts (or 0 if vacation is now due) */
+  daysUntilNextVacation: number;
+  isOnVacation: boolean;
+  /** @nullable */
+  nextVacationStart: string | null;
+}
+
+export interface VacationItem {
+  id: number;
+  employeeId: number;
+  startDate: string;
+  endDate: string;
+  durationDays: number;
+  /** @nullable */
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface EmployeeDetail {
+  id: number;
+  name: string;
+  role: string;
+  department: string;
+  hireDate: string;
+  createdAt: string;
+  vacationBalanceDays: number;
+  daysUntilNextVacation: number;
+  isOnVacation: boolean;
+  /** @nullable */
+  nextVacationStart: string | null;
+  vacations: VacationItem[];
+}
+
+export interface ListEmployeesResponse {
+  employees: EmployeeWithBalance[];
+}
+
+export interface CreateEmployeeBody {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  role: string;
+  /** @minLength 1 */
+  department: string;
+  hireDate: string;
+}
+
+export interface UpdateEmployeeBody {
+  /** @minLength 1 */
+  name?: string;
+  /** @minLength 1 */
+  role?: string;
+  /** @minLength 1 */
+  department?: string;
+  hireDate?: string;
+}
+
+export interface ListVacationsResponse {
+  vacations: VacationItem[];
+}
+
+export interface CreateVacationBody {
+  startDate: string;
+  endDate: string;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface UpcomingVacation {
+  employeeId: number;
+  employeeName: string;
+  department: string;
+  startDate: string;
+  endDate: string;
+  durationDays: number;
+}
+
+export type DashboardSummaryDepartmentBreakdownItem = {
+  department: string;
+  count: number;
+  onVacation: number;
+};
+
+export interface DashboardSummary {
+  totalEmployees: number;
+  onVacationToday: number;
+  upcomingVacations: UpcomingVacation[];
+  /** Employees with overdue vacation balance (>= 30 days balance and no upcoming vacation) */
+  overdueVacations: number;
+  departmentBreakdown: DashboardSummaryDepartmentBreakdownItem[];
+}
+
+/**
+ * Opaque session token — `Bearer <sid>`.
+ */
+export type AuthorizationSessionHeaderParameter = string;
+
+export type BeginBrowserLoginParams = {
+  /**
+   * Relative path to redirect to after login (must start with `/`). Defaults to `/`.
+   */
+  returnTo?: string;
+};
+
+export type HandleBrowserLoginCallbackParams = {
+  code?: string;
+  state?: string;
+  iss?: string;
+};

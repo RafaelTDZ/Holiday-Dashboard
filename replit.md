@@ -16,24 +16,58 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 
+## Project: Dashboard de Férias
+
+HR vacation management dashboard with Replit Auth login protection. HR managers can track employee vacations, view who is on vacation today, upcoming vacations, vacation balance per employee.
+
+**Features:**
+- Replit Auth (OIDC/PKCE) — protected routes, no custom login forms
+- Add/edit/delete employees (name, role, department, hire date)
+- Register/delete vacation periods per employee (start date, end date, notes)
+- Countdown of days until next annual vacation period
+- Dashboard overview: employees on vacation today, upcoming vacations, department breakdown
+- Vacation balance: 30 days/completed year - days taken
+
+**Vacation balance rule:** `balanceDays = floor(yearsWorked) * 30 - daysTaken`
+
 ## Structure
 
 ```text
 artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
-│   ├── api-spec/           # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+├── artifacts/
+│   ├── api-server/             # Express API server (port 8080)
+│   └── vacation-dashboard/     # React+Vite frontend (port auto, path /)
+├── lib/
+│   ├── api-spec/               # OpenAPI spec + Orval codegen config
+│   ├── api-client-react/       # Generated React Query hooks
+│   ├── api-zod/                # Generated Zod schemas from OpenAPI
+│   ├── db/                     # Drizzle ORM schema + DB connection
+│   └── replit-auth-web/        # useAuth() hook for frontend
+├── scripts/                    # Utility scripts
+├── pnpm-workspace.yaml
+├── tsconfig.base.json
+├── tsconfig.json
+└── package.json
 ```
+
+## Database Schema
+
+- `employees` — id, name, role, department, hire_date, created_at
+- `vacations` — id, employee_id (FK→employees, cascade delete), start_date, end_date, notes, created_at
+- `sessions` — express-session store (Replit Auth)
+- `users` — Replit Auth user profiles
+
+## API Routes
+
+All routes prefixed with `/api`:
+- `GET /health`
+- `GET /auth/user` — current user
+- `GET /auth/login`, `GET /auth/callback`, `GET /auth/logout`
+- `GET /employees`, `POST /employees`
+- `GET /employees/:id`, `PUT /employees/:id`, `DELETE /employees/:id`
+- `GET /employees/:id/vacations`, `POST /employees/:id/vacations`
+- `DELETE /vacations/:id`
+- `GET /dashboard/summary`
 
 ## TypeScript & Composite Projects
 

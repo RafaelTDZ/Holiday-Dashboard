@@ -14,3 +14,271 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary Get the currently authenticated user
+ */
+export const GetCurrentAuthUserHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const GetCurrentAuthUserResponse = zod.object({
+  user: zod.union([
+    zod.object({
+      id: zod.string(),
+      email: zod.string().email().nullable(),
+      firstName: zod.string().nullable(),
+      lastName: zod.string().nullable(),
+      profileImageUrl: zod.string().nullable(),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
+ * @summary Start the browser OIDC login flow
+ */
+export const BeginBrowserLoginQueryParams = zod.object({
+  returnTo: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Relative path to redirect to after login (must start with `\/`). Defaults to `\/`.",
+    ),
+});
+
+/**
+ * @summary Complete the browser OIDC login flow
+ */
+export const HandleBrowserLoginCallbackQueryParams = zod.object({
+  code: zod.coerce.string().optional(),
+  state: zod.coerce.string().optional(),
+  iss: zod.coerce.string().url().optional(),
+});
+
+/**
+ * @summary Clear the session and begin OIDC logout
+ */
+export const LogoutBrowserSessionHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+/**
+ * @summary Exchange a mobile OIDC code for a session token
+ */
+
+export const ExchangeMobileAuthorizationCodeBody = zod.object({
+  code: zod.string().min(1),
+  code_verifier: zod.string().min(1),
+  redirect_uri: zod.string().url().min(1),
+  state: zod.string().min(1),
+  nonce: zod.string().min(1).optional(),
+});
+
+export const ExchangeMobileAuthorizationCodeResponse = zod.object({
+  token: zod.string(),
+});
+
+/**
+ * @summary Delete a mobile session token
+ */
+export const LogoutMobileSessionHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const LogoutMobileSessionResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary List all employees with vacation balance
+ */
+export const ListEmployeesResponse = zod.object({
+  employees: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      role: zod.string(),
+      department: zod.string(),
+      hireDate: zod.coerce.date(),
+      createdAt: zod.coerce.date(),
+      vacationBalanceDays: zod
+        .number()
+        .describe("Available vacation days (earned - taken)"),
+      daysUntilNextVacation: zod
+        .number()
+        .describe(
+          "Days until next vacation period starts (or 0 if vacation is now due)",
+        ),
+      isOnVacation: zod.boolean(),
+      nextVacationStart: zod.coerce.date().nullable(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create a new employee
+ */
+
+export const CreateEmployeeBody = zod.object({
+  name: zod.string().min(1),
+  role: zod.string().min(1),
+  department: zod.string().min(1),
+  hireDate: zod.coerce.date(),
+});
+
+/**
+ * @summary Get a single employee by ID
+ */
+export const GetEmployeeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetEmployeeResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  role: zod.string(),
+  department: zod.string(),
+  hireDate: zod.coerce.date(),
+  createdAt: zod.coerce.date(),
+  vacationBalanceDays: zod.number(),
+  daysUntilNextVacation: zod.number(),
+  isOnVacation: zod.boolean(),
+  nextVacationStart: zod.coerce.date().nullable(),
+  vacations: zod.array(
+    zod.object({
+      id: zod.number(),
+      employeeId: zod.number(),
+      startDate: zod.coerce.date(),
+      endDate: zod.coerce.date(),
+      durationDays: zod.number(),
+      notes: zod.string().nullable(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Update an employee
+ */
+export const UpdateEmployeeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateEmployeeBody = zod.object({
+  name: zod.string().min(1).optional(),
+  role: zod.string().min(1).optional(),
+  department: zod.string().min(1).optional(),
+  hireDate: zod.coerce.date().optional(),
+});
+
+export const UpdateEmployeeResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  role: zod.string(),
+  department: zod.string(),
+  hireDate: zod.coerce.date(),
+  createdAt: zod.coerce.date(),
+  vacationBalanceDays: zod.number(),
+  daysUntilNextVacation: zod.number(),
+  isOnVacation: zod.boolean(),
+  nextVacationStart: zod.coerce.date().nullable(),
+  vacations: zod.array(
+    zod.object({
+      id: zod.number(),
+      employeeId: zod.number(),
+      startDate: zod.coerce.date(),
+      endDate: zod.coerce.date(),
+      durationDays: zod.number(),
+      notes: zod.string().nullable(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Delete an employee
+ */
+export const DeleteEmployeeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List vacations for an employee
+ */
+export const ListEmployeeVacationsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListEmployeeVacationsResponse = zod.object({
+  vacations: zod.array(
+    zod.object({
+      id: zod.number(),
+      employeeId: zod.number(),
+      startDate: zod.coerce.date(),
+      endDate: zod.coerce.date(),
+      durationDays: zod.number(),
+      notes: zod.string().nullable(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Register a vacation period for an employee
+ */
+export const CreateVacationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CreateVacationBody = zod.object({
+  startDate: zod.coerce.date(),
+  endDate: zod.coerce.date(),
+  notes: zod.string().nullish(),
+});
+
+/**
+ * @summary Delete a vacation period
+ */
+export const DeleteVacationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Get dashboard summary statistics
+ */
+export const GetDashboardSummaryResponse = zod.object({
+  totalEmployees: zod.number(),
+  onVacationToday: zod.number(),
+  upcomingVacations: zod.array(
+    zod.object({
+      employeeId: zod.number(),
+      employeeName: zod.string(),
+      department: zod.string(),
+      startDate: zod.coerce.date(),
+      endDate: zod.coerce.date(),
+      durationDays: zod.number(),
+    }),
+  ),
+  overdueVacations: zod
+    .number()
+    .describe(
+      "Employees with overdue vacation balance (>= 30 days balance and no upcoming vacation)",
+    ),
+  departmentBreakdown: zod.array(
+    zod.object({
+      department: zod.string(),
+      count: zod.number(),
+      onVacation: zod.number(),
+    }),
+  ),
+});
