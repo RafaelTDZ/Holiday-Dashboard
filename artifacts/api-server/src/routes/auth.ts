@@ -223,7 +223,7 @@ function isValidEmail(email: string): boolean {
 }
 
 router.post("/auth/register-local", async (req: Request, res: Response): Promise<void> => {
-  const { email, password, firstName, lastName } = req.body ?? {};
+  const { email, password } = req.body ?? {};
 
   if (!email || !isValidEmail(email)) {
     res.status(400).json({ error: "E-mail inválido." });
@@ -231,14 +231,6 @@ router.post("/auth/register-local", async (req: Request, res: Response): Promise
   }
   if (!password || password.length < 6) {
     res.status(400).json({ error: "A senha deve ter no mínimo 6 caracteres." });
-    return;
-  }
-  if (!firstName?.trim()) {
-    res.status(400).json({ error: "Nome é obrigatório." });
-    return;
-  }
-  if (!lastName?.trim()) {
-    res.status(400).json({ error: "Sobrenome é obrigatório." });
     return;
   }
 
@@ -251,8 +243,6 @@ router.post("/auth/register-local", async (req: Request, res: Response): Promise
   const passwordHash = await bcrypt.hash(password, 12);
   const [user] = await db.insert(usersTable).values({
     email,
-    firstName,
-    lastName,
     passwordHash,
   }).returning();
 
