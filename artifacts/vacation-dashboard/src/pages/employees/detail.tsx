@@ -484,7 +484,7 @@ export default function EmployeeDetail() {
                 <CardDescription>Períodos registrados e seus status de aprovação</CardDescription>
               </div>
               <Dialog open={isVacationOpen} onOpenChange={setIsVacationOpen}>
-                {isOwnProfile && isEligible && (
+                {isOwnProfile && employee.vacationBalanceDays >= 30 && (
                   <DialogTrigger asChild>
                     <Button size="sm" data-testid="button-add-vacation">
                       <Plane className="w-4 h-4 mr-2" />
@@ -567,12 +567,12 @@ export default function EmployeeDetail() {
                   <p className="text-sm text-muted-foreground max-w-sm mt-1">
                     Este funcionário ainda não possui períodos de férias solicitados.
                   </p>
-                  {isOwnProfile && isEligible && (
+                  {isOwnProfile && employee.vacationBalanceDays >= 30 && (
                     <Button variant="outline" className="mt-6" onClick={() => setIsVacationOpen(true)}>
                       Solicitar primeiro período
                     </Button>
                   )}
-                  {isOwnProfile && !isEligible && firstEligibilityDate && (
+                  {isOwnProfile && employee.vacationBalanceDays < 30 && firstEligibilityDate && (
                     <p className="text-sm text-amber-600 font-medium mt-4">
                       Férias disponíveis a partir de {format(parseISO(firstEligibilityDate), "dd/MM/yyyy")}
                     </p>
