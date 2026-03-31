@@ -1,4 +1,5 @@
 import * as oidc from "openid-client";
+import bcrypt from "bcryptjs";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   GetCurrentAuthUserResponse,
@@ -11,6 +12,7 @@ import { db, usersTable } from "@workspace/db";
 import {
   clearSession,
   getOidcConfig,
+  getSession,
   getSessionId,
   createSession,
   deleteSession,
@@ -194,18 +196,120 @@ router.get("/callback", async (req: Request, res: Response) => {
 });
 
 router.get("/logout", async (req: Request, res: Response) => {
-  const config = await getOidcConfig();
   const origin = getOrigin(req);
-
   const sid = getSessionId(req);
+
+  const session = sid ? await getSession(sid) : null;
+  const isLocal = session?.localAuth === true;
+
   await clearSession(res, sid);
 
+  if (isLocal) {
+    res.redirect("/");
+    return;
+  }
+
+  const config = await getOidcConfig();
   const endSessionUrl = oidc.buildEndSessionUrl(config, {
     client_id: process.env.REPL_ID!,
     post_logout_redirect_uri: origin,
   });
 
   res.redirect(endSessionUrl.href);
+});
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+router.post("/auth/register-local", async (req: Request, res: Response): Promise<void> => {
+  const { email, password, firstName, lastName } = req.body ?? {};
+
+  if (!email || !isValidEmail(email)) {
+    res.status(400).json({ error: "E-mail inválido." });
+    return;
+  }
+  if (!password || password.length < 6) {
+    res.status(400).json({ error: "A senha deve ter no mínimo 6 caracteres." });
+    return;
+  }
+  if (!firstName?.trim()) {
+    res.status(400).json({ error: "Nome é obrigatório." });
+    return;
+  }
+  if (!lastName?.trim()) {
+    res.status(400).json({ error: "Sobrenome é obrigatório." });
+    return;
+  }
+
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  if (existing) {
+    res.status(409).json({ error: "Este e-mail já está cadastrado." });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const [user] = await db.insert(usersTable).values({
+    email,
+    firstName,
+    lastName,
+    passwordHash,
+  }).returning();
+
+  const sessionData: SessionData = {
+    user: {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileImageUrl: user.profileImageUrl,
+      isManager: user.isManager,
+    },
+    access_token: "",
+    localAuth: true,
+  };
+
+  const sid = await createSession(sessionData);
+  setSessionCookie(res, sid);
+  res.json({ ok: true });
+});
+
+router.post("/auth/login-local", async (req: Request, res: Response): Promise<void> => {
+  const { email, password } = req.body ?? {};
+
+  if (!email || !password) {
+    res.status(400).json({ error: "E-mail ou senha inválidos." });
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  if (!user || !user.passwordHash) {
+    res.status(401).json({ error: "E-mail ou senha incorretos." });
+    return;
+  }
+
+  const match = await bcrypt.compare(password, user.passwordHash);
+  if (!match) {
+    res.status(401).json({ error: "E-mail ou senha incorretos." });
+    return;
+  }
+
+  const sessionData: SessionData = {
+    user: {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileImageUrl: user.profileImageUrl,
+      isManager: user.isManager,
+    },
+    access_token: "",
+    localAuth: true,
+  };
+
+  const sid = await createSession(sessionData);
+  setSessionCookie(res, sid);
+  res.json({ ok: true });
 });
 
 router.post(

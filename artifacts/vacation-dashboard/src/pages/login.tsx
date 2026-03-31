@@ -1,38 +1,218 @@
+import { useState } from "react";
 import { useAuth } from "@workspace/replit-auth-web";
 import { Button } from "@/components/ui/button";
-import { Briefcase } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Briefcase, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+
+type Mode = "login" | "register";
+
+function getApiBase() {
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  return `${base}/api`;
+}
 
 export default function Login() {
   const { login } = useAuth();
+  const { toast } = useToast();
+
+  const [mode, setMode] = useState<Mode>("login");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const endpoint = mode === "login" ? "/auth/login-local" : "/auth/register-local";
+      const body =
+        mode === "login"
+          ? { email, password }
+          : { email, password, firstName, lastName };
+
+      const res = await fetch(`${getApiBase()}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast({ variant: "destructive", title: "Erro", description: data.error ?? "Ocorreu um erro." });
+        return;
+      }
+
+      window.location.reload();
+    } catch {
+      toast({ variant: "destructive", title: "Erro de conexão", description: "Não foi possível conectar ao servidor." });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-muted/30 p-4">
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
       <div className="relative z-10 w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
         <div className="flex justify-center mb-8">
           <div className="h-16 w-16 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 rotate-3 transition-transform hover:rotate-0">
             <Briefcase className="w-8 h-8 text-primary-foreground" />
           </div>
         </div>
-        
+
         <Card className="border-border/50 shadow-xl">
           <CardHeader className="text-center pb-2">
             <CardTitle className="text-2xl font-bold tracking-tight">Dashboard de Férias</CardTitle>
             <CardDescription className="text-base mt-2">
-              Gestão inteligente e profissional de períodos aquisitivos e descansos da equipe.
+              {mode === "login"
+                ? "Entre com suas credenciais para continuar."
+                : "Crie sua conta para acessar o sistema."}
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-6 pb-8 px-8">
-            <Button 
-              size="lg" 
-              className="w-full text-base font-semibold shadow-md"
+
+          <CardContent className="pt-4 pb-8 px-8 space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {mode === "register" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="firstName">Nome</Label>
+                    <Input
+                      id="firstName"
+                      placeholder="João"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                      disabled={loading}
+                      data-testid="input-first-name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lastName">Sobrenome</Label>
+                    <Input
+                      id="lastName"
+                      placeholder="Silva"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                      disabled={loading}
+                      data-testid="input-last-name"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label htmlFor="email">E-mail</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="voce@empresa.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                  data-testid="input-email"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Senha</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder={mode === "register" ? "Mínimo 6 caracteres" : "••••••••"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={loading}
+                    className="pr-10"
+                    data-testid="input-password"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowPassword((s) => !s)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full text-base font-semibold shadow-md"
+                disabled={loading}
+                data-testid="button-submit-local"
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                {mode === "login" ? "Entrar" : "Criar conta"}
+              </Button>
+            </form>
+
+            <div className="text-center text-sm">
+              {mode === "login" ? (
+                <span className="text-muted-foreground">
+                  Não tem conta?{" "}
+                  <button
+                    type="button"
+                    className="text-primary font-medium hover:underline"
+                    onClick={() => { setMode("register"); setPassword(""); }}
+                    data-testid="link-to-register"
+                  >
+                    Criar conta
+                  </button>
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  Já tem conta?{" "}
+                  <button
+                    type="button"
+                    className="text-primary font-medium hover:underline"
+                    onClick={() => { setMode("login"); setPassword(""); }}
+                    data-testid="link-to-login"
+                  >
+                    Entrar
+                  </button>
+                </span>
+              )}
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border/60" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">ou</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="w-full font-semibold"
               onClick={login}
-              data-testid="button-login"
+              data-testid="button-login-replit"
             >
               Entrar com Replit
             </Button>
-            <p className="text-center text-xs text-muted-foreground mt-6">
+
+            <p className="text-center text-xs text-muted-foreground">
               Acesso restrito a gestores e profissionais de Recursos Humanos.
             </p>
           </CardContent>
