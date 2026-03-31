@@ -47,9 +47,8 @@ export function calculateVacationStats(
     Math.round((todayUtc.getTime() - hire.getTime()) / msPerDay),
   );
 
-  // Completed years: 30 days earned per complete year only
-  const yearsWorked = Math.floor(daysWorked / 365.25);
-  const daysEarned = yearsWorked * 30;
+  // Proportional accrual: 30 days per year, shown from day 1
+  const daysEarned = (daysWorked / 365.25) * 30;
 
   // Days taken: only count past and currently ongoing APPROVED vacations (not future ones)
   let daysTaken = 0;

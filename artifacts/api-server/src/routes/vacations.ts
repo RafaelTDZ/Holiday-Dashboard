@@ -71,10 +71,10 @@ router.post(
       return;
     }
 
-    const { eligibleForVacation, firstEligibilityDate } = calculateVacationStats(emp.hireDate, []);
-    if (!eligibleForVacation) {
+    const { vacationBalanceDays, firstEligibilityDate } = calculateVacationStats(emp.hireDate, []);
+    if (vacationBalanceDays < 30) {
       res.status(403).json({
-        error: `Você ainda não completou um ano de admissão. Férias disponíveis a partir de ${firstEligibilityDate}.`,
+        error: `Saldo insuficiente para solicitar férias. Férias disponíveis a partir de ${firstEligibilityDate}.`,
       });
       return;
     }
