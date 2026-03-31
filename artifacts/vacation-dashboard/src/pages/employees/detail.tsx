@@ -459,19 +459,22 @@ export default function EmployeeDetail() {
 
         {/* Vacations Content */}
         <div className="md:col-span-2 space-y-6">
-          {employee.vacationBalanceDays >= 60 && (
+          {!employee.isOnVacation && (employee.vacationBalanceDays >= 60 || ((employee as any).daysUntilNextVacation <= 30 && employee.vacationBalanceDays >= 30)) && (
             <Alert className="border-red-500 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400">
               <Siren className="h-4 w-4 text-red-500" />
               <AlertTitle className="font-bold">Férias Urgentes</AlertTitle>
               <AlertDescription>
-                {employee.name} acumulou <strong>{employee.vacationBalanceDays.toFixed(0)} dias</strong> de saldo. Agendamento imediato de férias é obrigatório.
+                {employee.vacationBalanceDays >= 60
+                  ? <>{employee.name} acumulou <strong>{employee.vacationBalanceDays.toFixed(0)} dias</strong> de saldo. Agendamento imediato é obrigatório.</>
+                  : <>{employee.name} tem <strong>{employee.vacationBalanceDays.toFixed(0)} dias</strong> de saldo e o próximo período fecha em <strong>{(employee as any).daysUntilNextVacation} dias</strong>. Agende as férias imediatamente.</>
+                }
               </AlertDescription>
             </Alert>
           )}
-          {employee.vacationBalanceDays > 30 && employee.vacationBalanceDays < 60 && (
+          {!employee.isOnVacation && employee.vacationBalanceDays > 30 && !(employee.vacationBalanceDays >= 60 || ((employee as any).daysUntilNextVacation <= 30 && employee.vacationBalanceDays >= 30)) && (
             <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <AlertTitle className="font-semibold">Saldo de Férias Elevado</AlertTitle>
+              <AlertTitle className="font-semibold">Atenção: Saldo de Férias Elevado</AlertTitle>
               <AlertDescription>
                 {employee.name} possui <strong>{employee.vacationBalanceDays.toFixed(0)} dias</strong> de saldo acumulado. Recomenda-se agendar férias em breve.
               </AlertDescription>
