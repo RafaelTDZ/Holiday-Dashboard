@@ -115,6 +115,8 @@ export default function EmployeeDetail() {
     query: { enabled: !!employeeId, queryKey: getGetEmployeeQueryKey(employeeId) }
   });
 
+  const isOwnProfile = !!(employee && (employee as any).userId === user?.id);
+
   const updateEmployee = useUpdateEmployee();
   const deleteEmployee = useDeleteEmployee();
   const createVacation = useCreateVacation();
@@ -420,12 +422,14 @@ export default function EmployeeDetail() {
                 <CardDescription>Períodos registrados e seus status de aprovação</CardDescription>
               </div>
               <Dialog open={isVacationOpen} onOpenChange={setIsVacationOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" data-testid="button-add-vacation">
-                    <Plane className="w-4 h-4 mr-2" />
-                    Solicitar Férias
-                  </Button>
-                </DialogTrigger>
+                {isOwnProfile && (
+                  <DialogTrigger asChild>
+                    <Button size="sm" data-testid="button-add-vacation">
+                      <Plane className="w-4 h-4 mr-2" />
+                      Solicitar Férias
+                    </Button>
+                  </DialogTrigger>
+                )}
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Solicitar Férias</DialogTitle>
@@ -501,9 +505,11 @@ export default function EmployeeDetail() {
                   <p className="text-sm text-muted-foreground max-w-sm mt-1">
                     Este funcionário ainda não possui períodos de férias solicitados.
                   </p>
+                  {isOwnProfile && (
                   <Button variant="outline" className="mt-6" onClick={() => setIsVacationOpen(true)}>
                     Solicitar primeiro período
                   </Button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">

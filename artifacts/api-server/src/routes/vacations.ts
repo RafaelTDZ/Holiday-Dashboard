@@ -66,6 +66,11 @@ router.post(
       return;
     }
 
+    if (emp.userId !== req.user!.id) {
+      res.status(403).json({ error: "Você só pode agendar férias para si mesmo." });
+      return;
+    }
+
     const parsed = CreateVacationBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
