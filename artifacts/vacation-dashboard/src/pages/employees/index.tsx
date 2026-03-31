@@ -288,8 +288,14 @@ export default function EmployeesList() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="font-semibold text-lg flex items-center justify-end gap-2">
-                        {emp.vacationBalanceDays >= 30 && !emp.nextVacationStart && !emp.isOnVacation && (
-                          <div className="w-2 h-2 rounded-full bg-red-500" title="Férias Vencidas" />
+                        {emp.vacationBalanceDays >= 60 && !emp.isOnVacation && (
+                          <span className="relative flex h-2.5 w-2.5" title="Férias Urgentes">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600" />
+                          </span>
+                        )}
+                        {emp.vacationBalanceDays > 30 && emp.vacationBalanceDays < 60 && !emp.isOnVacation && (
+                          <div className="w-2 h-2 rounded-full bg-amber-500" title="Saldo Elevado" />
                         )}
                         {emp.vacationBalanceDays.toFixed(1)}
                       </div>
@@ -297,8 +303,10 @@ export default function EmployeesList() {
                     <TableCell className="text-right">
                       {emp.isOnVacation ? (
                         <Badge className="bg-teal-500 hover:bg-teal-600 text-white">Em Férias</Badge>
-                      ) : emp.daysUntilNextVacation === 0 && emp.vacationBalanceDays >= 30 ? (
-                        <Badge variant="destructive">Vencidas</Badge>
+                      ) : emp.vacationBalanceDays >= 60 && !emp.nextVacationStart ? (
+                        <Badge variant="destructive" className="animate-pulse">Urgente</Badge>
+                      ) : emp.vacationBalanceDays > 30 && !emp.nextVacationStart ? (
+                        <Badge className="bg-amber-100 text-amber-700 border border-amber-400 hover:bg-amber-100">Saldo Elevado</Badge>
                       ) : emp.nextVacationStart ? (
                         <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                           Agendadas ({emp.daysUntilNextVacation}d)
