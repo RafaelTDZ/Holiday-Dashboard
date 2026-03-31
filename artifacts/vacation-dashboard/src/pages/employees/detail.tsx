@@ -116,6 +116,8 @@ export default function EmployeeDetail() {
   });
 
   const isOwnProfile = !!(employee && (employee as any).userId === user?.id);
+  const isEligible = !!(employee && (employee as any).eligibleForVacation);
+  const firstEligibilityDate: string | undefined = employee ? (employee as any).firstEligibilityDate : undefined;
 
   const updateEmployee = useUpdateEmployee();
   const deleteEmployee = useDeleteEmployee();
@@ -422,7 +424,7 @@ export default function EmployeeDetail() {
                 <CardDescription>Períodos registrados e seus status de aprovação</CardDescription>
               </div>
               <Dialog open={isVacationOpen} onOpenChange={setIsVacationOpen}>
-                {isOwnProfile && (
+                {isOwnProfile && isEligible && (
                   <DialogTrigger asChild>
                     <Button size="sm" data-testid="button-add-vacation">
                       <Plane className="w-4 h-4 mr-2" />
@@ -505,10 +507,15 @@ export default function EmployeeDetail() {
                   <p className="text-sm text-muted-foreground max-w-sm mt-1">
                     Este funcionário ainda não possui períodos de férias solicitados.
                   </p>
-                  {isOwnProfile && (
-                  <Button variant="outline" className="mt-6" onClick={() => setIsVacationOpen(true)}>
-                    Solicitar primeiro período
-                  </Button>
+                  {isOwnProfile && isEligible && (
+                    <Button variant="outline" className="mt-6" onClick={() => setIsVacationOpen(true)}>
+                      Solicitar primeiro período
+                    </Button>
+                  )}
+                  {isOwnProfile && !isEligible && firstEligibilityDate && (
+                    <p className="text-sm text-amber-600 font-medium mt-4">
+                      Férias disponíveis a partir de {format(parseISO(firstEligibilityDate), "dd/MM/yyyy")}
+                    </p>
                   )}
                 </div>
               ) : (

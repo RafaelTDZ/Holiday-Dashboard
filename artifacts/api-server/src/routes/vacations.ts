@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
 import { db, vacationsTable, employeesTable } from "@workspace/db";
 import { CreateVacationBody } from "@workspace/api-zod";
-import { vacationDurationDays } from "../lib/vacation-utils";
+import { vacationDurationDays, calculateVacationStats } from "../lib/vacation-utils";
 
 const router: IRouter = Router();
 
@@ -68,6 +68,14 @@ router.post(
 
     if (emp.userId !== req.user!.id) {
       res.status(403).json({ error: "Você só pode agendar férias para si mesmo." });
+      return;
+    }
+
+    const { eligibleForVacation, firstEligibilityDate } = calculateVacationStats(emp.hireDate, []);
+    if (!eligibleForVacation) {
+      res.status(403).json({
+        error: `Você ainda não completou um ano de admissão. Férias disponíveis a partir de ${firstEligibilityDate}.`,
+      });
       return;
     }
 

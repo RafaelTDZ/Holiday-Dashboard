@@ -5,16 +5,18 @@ export interface VacationStats {
   daysUntilNextVacation: number;
   isOnVacation: boolean;
   nextVacationStart: string | null;
+  eligibleForVacation: boolean;
+  firstEligibilityDate: string;
 }
 
 /**
  * Calculate vacation statistics for an employee.
  * Rules:
- * - Employees earn 30 days of vacation proportional to the time worked.
- *   balanceDays = floor((daysWorked / 365.25) * 30) - daysTaken
+ * - Employees earn 30 days of vacation per COMPLETED year from hire date.
+ *   No entitlement before completing the first year.
+ *   daysEarned = floor(yearsWorked) * 30
  * - Only APPROVED vacations count toward balance and isOnVacation.
- * - daysUntilNextVacation = days until the next annual anniversary starting
- *   from either the hire date or the end date of the last approved vacation.
+ * - daysUntilNextVacation = days until the next annual anniversary.
  */
 export function calculateVacationStats(
   hireDate: string,
@@ -29,6 +31,13 @@ export function calculateVacationStats(
   const msPerDay = 24 * 60 * 60 * 1000;
   const todayStr = todayUtc.toISOString().split("T")[0];
 
+  // Date when the employee completes 1 year (first eligibility)
+  const firstEligibility = new Date(
+    Date.UTC(hire.getUTCFullYear() + 1, hire.getUTCMonth(), hire.getUTCDate()),
+  );
+  const firstEligibilityDate = firstEligibility.toISOString().split("T")[0];
+  const eligibleForVacation = todayUtc >= firstEligibility;
+
   // Only approved vacations count for balance calculations
   const approvedVacations = vacations.filter((v) => v.status === "approved");
 
@@ -38,8 +47,9 @@ export function calculateVacationStats(
     Math.round((todayUtc.getTime() - hire.getTime()) / msPerDay),
   );
 
-  // Days earned proportionally: 30 per year
-  const daysEarned = Math.floor((daysWorked / 365.25) * 30);
+  // Completed years: 30 days earned per complete year only
+  const yearsWorked = Math.floor(daysWorked / 365.25);
+  const daysEarned = yearsWorked * 30;
 
   // Days taken: only count past and currently ongoing APPROVED vacations (not future ones)
   let daysTaken = 0;
@@ -105,6 +115,8 @@ export function calculateVacationStats(
     daysUntilNextVacation,
     isOnVacation,
     nextVacationStart,
+    eligibleForVacation,
+    firstEligibilityDate,
   };
 }
 
