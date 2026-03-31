@@ -11,7 +11,7 @@ import {
   getListEmployeesQueryKey,
   getGetDashboardSummaryQueryKey
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -69,6 +69,7 @@ import {
   Plane,
   Trash2,
   Edit,
+  Pencil,
   Clock,
   CheckCircle,
   XCircle
@@ -127,6 +128,8 @@ export default function EmployeeDetail() {
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isVacationOpen, setIsVacationOpen] = useState(false);
+  const [isEditVacationOpen, setIsEditVacationOpen] = useState(false);
+  const [editingVacationId, setEditingVacationId] = useState<number | null>(null);
 
   const editForm = useForm<z.infer<typeof updateEmployeeSchema>>({
     resolver: zodResolver(updateEmployeeSchema),
@@ -186,6 +189,41 @@ export default function EmployeeDetail() {
         toast({ variant: "destructive", title: "Erro ao solicitar férias", description: err.data?.error ?? err.message });
       }
     });
+  };
+
+  const editVacationForm = useForm<z.infer<typeof createVacationSchema>>({
+    resolver: zodResolver(createVacationSchema),
+    defaultValues: { startDate: "", endDate: "", notes: "" },
+  });
+
+  const updateVacationMutation = useMutation({
+    mutationFn: async (values: { id: number; startDate: string; endDate: string; notes?: string }) => {
+      const res = await fetch(`/api/vacations/${values.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startDate: values.startDate, endDate: values.endDate, notes: values.notes ?? null }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao atualizar férias");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employeeId) });
+      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+      toast({ title: "Férias atualizadas", description: "O período foi alterado com sucesso." });
+      setIsEditVacationOpen(false);
+      setEditingVacationId(null);
+      editVacationForm.reset();
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erro ao atualizar férias", description: err.message });
+    },
+  });
+
+  const onEditVacationSubmit = (values: z.infer<typeof createVacationSchema>) => {
+    if (!editingVacationId) return;
+    updateVacationMutation.mutate({ id: editingVacationId, ...values });
   };
 
   const handleDeleteEmployee = () => {
@@ -256,6 +294,7 @@ export default function EmployeeDetail() {
   }
 
   return (
+    <>
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" asChild className="rounded-full">
@@ -549,6 +588,26 @@ export default function EmployeeDetail() {
                               <VacationStatusBadge status={vacation.status} />
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
+                              {isOwnProfile && isPending && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                  title="Editar férias"
+                                  data-testid={`button-edit-vacation-${vacation.id}`}
+                                  onClick={() => {
+                                    setEditingVacationId(vacation.id);
+                                    editVacationForm.reset({
+                                      startDate: vacation.startDate,
+                                      endDate: vacation.endDate,
+                                      notes: vacation.notes ?? "",
+                                    });
+                                    setIsEditVacationOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               {isManager && isPending && (
                                 <>
                                   <Button
@@ -622,5 +681,60 @@ export default function EmployeeDetail() {
         </div>
       </div>
     </div>
+
+    <Dialog open={isEditVacationOpen} onOpenChange={(open) => { setIsEditVacationOpen(open); if (!open) { setEditingVacationId(null); editVacationForm.reset(); } }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Alterar Férias</DialogTitle>
+          <DialogDescription>Edite as datas do período pendente. Após aprovação não é mais possível alterar.</DialogDescription>
+        </DialogHeader>
+        <Form {...editVacationForm}>
+          <form onSubmit={editVacationForm.handleSubmit(onEditVacationSubmit)} className="space-y-4 pt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={editVacationForm.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Início</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editVacationForm.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Término</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={editVacationForm.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Observações (Opcional)</FormLabel>
+                  <FormControl><Textarea placeholder="Motivo, acordos, etc." className="resize-none h-20" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsEditVacationOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={updateVacationMutation.isPending} data-testid="button-save-vacation-edit">
+                Salvar alterações
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

@@ -167,6 +167,72 @@ router.put(
   },
 );
 
+router.put(
+  "/vacations/:id",
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const id = parseInt(rawId, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid vacation ID" });
+      return;
+    }
+
+    const [vacation] = await db.select().from(vacationsTable).where(eq(vacationsTable.id, id));
+    if (!vacation) {
+      res.status(404).json({ error: "Vacation not found" });
+      return;
+    }
+
+    if (vacation.status !== "pending") {
+      res.status(403).json({ error: "Só é possível editar férias com status Pendente." });
+      return;
+    }
+
+    const [emp] = await db.select().from(employeesTable).where(eq(employeesTable.id, vacation.employeeId));
+    if (!emp || emp.userId !== req.user!.id) {
+      res.status(403).json({ error: "Você só pode editar suas próprias férias." });
+      return;
+    }
+
+    const { startDate: startDateRaw, endDate: endDateRaw, notes } = req.body ?? {};
+    if (!startDateRaw || !endDateRaw) {
+      res.status(400).json({ error: "Data de início e término são obrigatórias." });
+      return;
+    }
+
+    const toDateStr = (d: string) => d.split("T")[0];
+    const startDate = toDateStr(startDateRaw);
+    const endDate = toDateStr(endDateRaw);
+
+    if (endDate < startDate) {
+      res.status(400).json({ error: "A data de término deve ser após o início." });
+      return;
+    }
+
+    const [updated] = await db
+      .update(vacationsTable)
+      .set({ startDate, endDate, notes: notes ?? null })
+      .where(eq(vacationsTable.id, id))
+      .returning();
+
+    res.json({
+      id: updated.id,
+      employeeId: updated.employeeId,
+      startDate: updated.startDate,
+      endDate: updated.endDate,
+      durationDays: vacationDurationDays(updated.startDate, updated.endDate),
+      notes: updated.notes,
+      status: updated.status,
+      createdAt: updated.createdAt,
+    });
+  },
+);
+
 router.delete(
   "/vacations/:id",
   async (req: Request, res: Response): Promise<void> => {
