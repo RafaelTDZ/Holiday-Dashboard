@@ -113,7 +113,7 @@ router.put(
       return;
     }
     if (!req.user!.isManager) {
-      res.status(403).json({ error: "Apenas gestores podem aprovar ou reprovar férias." });
+      res.status(403).json({ error: "Apenas coordenadores podem aprovar ou reprovar férias." });
       return;
     }
 

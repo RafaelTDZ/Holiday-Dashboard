@@ -42,14 +42,24 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Search, Plus, UserCircle, Calendar, Briefcase, Building } from "lucide-react";
+import { Search, Plus, UserCircle, Calendar, Briefcase } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const DEPARTMENTS = ["Comercial", "Operacional", "Financeiro", "RH"] as const;
+type Department = typeof DEPARTMENTS[number];
 
 const createEmployeeSchema = z.object({
   name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
   role: z.string().min(2, "Cargo deve ter no mínimo 2 caracteres"),
-  department: z.string().min(2, "Departamento deve ter no mínimo 2 caracteres"),
+  department: z.enum(DEPARTMENTS),
   hireDate: z.string().refine(val => !isNaN(Date.parse(val)), "Data inválida")
 });
 
@@ -167,12 +177,18 @@ export default function EmployeesList() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Departamento</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Building className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Ex: TI" className="pl-9" {...field} data-testid="input-department" />
-                          </div>
-                        </FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="input-department">
+                              <SelectValue placeholder="Selecionar..." />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {DEPARTMENTS.map((dept) => (
+                              <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}

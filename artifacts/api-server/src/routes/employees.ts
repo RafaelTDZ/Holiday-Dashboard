@@ -124,7 +124,7 @@ router.put("/employees/:id", async (req: Request, res: Response): Promise<void> 
     return;
   }
   if (!req.user!.isManager) {
-    res.status(403).json({ error: "Apenas gestores podem editar funcionários." });
+    res.status(403).json({ error: "Apenas coordenadores podem editar funcionários." });
     return;
   }
 
@@ -197,7 +197,7 @@ router.delete("/employees/:id", async (req: Request, res: Response): Promise<voi
     return;
   }
   if (!req.user!.isManager) {
-    res.status(403).json({ error: "Apenas gestores podem excluir funcionários." });
+    res.status(403).json({ error: "Apenas coordenadores podem excluir funcionários." });
     return;
   }
 

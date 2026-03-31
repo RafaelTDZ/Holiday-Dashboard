@@ -25,6 +25,13 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Dialog, 
   DialogContent, 
@@ -67,10 +74,12 @@ import {
   XCircle
 } from "lucide-react";
 
+const DEPARTMENTS = ["Comercial", "Operacional", "Financeiro", "RH"] as const;
+
 const updateEmployeeSchema = z.object({
   name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
   role: z.string().min(2, "Cargo deve ter no mínimo 2 caracteres"),
-  department: z.string().min(2, "Departamento deve ter no mínimo 2 caracteres"),
+  department: z.string().min(1, "Selecione um departamento"),
   hireDate: z.string().refine(val => !isNaN(Date.parse(val)), "Data inválida")
 });
 
@@ -165,7 +174,7 @@ export default function EmployeeDetail() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employeeId) });
         queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-        toast({ title: "Férias solicitadas", description: "Aguardando aprovação do gestor." });
+        toast({ title: "Férias solicitadas", description: "Aguardando aprovação do coordenador." });
         setIsVacationOpen(false);
         vacationForm.reset();
       },
@@ -340,7 +349,18 @@ export default function EmployeeDetail() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Departamento</FormLabel>
-                              <FormControl><Input {...field} /></FormControl>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecionar..." />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {DEPARTMENTS.map((dept) => (
+                                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                               <FormMessage />
                             </FormItem>
                           )}

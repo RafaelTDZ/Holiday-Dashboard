@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, UserCircle, Briefcase, Building, Calendar, ClipboardList } from "lucide-react";
+import { Loader2, UserCircle, Briefcase, Calendar, ClipboardList } from "lucide-react";
 import {
   useGetMyEmployee,
   useRegisterAsEmployee,
@@ -15,6 +15,13 @@ import { useAuth } from "@workspace/replit-auth-web";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Form,
   FormControl,
   FormField,
@@ -24,10 +31,12 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 
+const DEPARTMENTS = ["Comercial", "Operacional", "Financeiro", "RH"] as const;
+
 const schema = z.object({
   name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
   role: z.string().min(2, "Cargo deve ter no mínimo 2 caracteres"),
-  department: z.string().min(2, "Departamento deve ter no mínimo 2 caracteres"),
+  department: z.enum(DEPARTMENTS),
   hireDate: z
     .string()
     .refine((v) => !isNaN(Date.parse(v)), "Data inválida"),
@@ -52,7 +61,7 @@ export function RegistrationGate({ children }: Props) {
         ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
         : "",
       role: "",
-      department: "",
+      department: undefined,
       hireDate: new Date().toISOString().split("T")[0],
     },
   });
@@ -160,7 +169,7 @@ export function RegistrationGate({ children }: Props) {
                         <div className="relative">
                           <Briefcase className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                           <Input
-                            placeholder="Ex: Desenvolvedor(a), Analista..."
+                            placeholder="Ex: Analista, Coordenador..."
                             className="pl-9"
                             data-testid="reg-input-role"
                             {...field}
@@ -179,17 +188,18 @@ export function RegistrationGate({ children }: Props) {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Departamento</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Building className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              placeholder="Ex: TI"
-                              className="pl-9"
-                              data-testid="reg-input-department"
-                              {...field}
-                            />
-                          </div>
-                        </FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="reg-input-department">
+                              <SelectValue placeholder="Selecionar..." />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {DEPARTMENTS.map((dept) => (
+                              <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}

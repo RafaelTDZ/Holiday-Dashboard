@@ -24,8 +24,6 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,10 +31,7 @@ export default function Login() {
 
     try {
       const endpoint = mode === "login" ? "/auth/login-local" : "/auth/register-local";
-      const body =
-        mode === "login"
-          ? { email, password }
-          : { email, password, firstName, lastName };
+      const body = { email, password };
 
       const res = await fetch(`${getApiBase()}${endpoint}`, {
         method: "POST",
@@ -82,35 +77,6 @@ export default function Login() {
 
           <CardContent className="pt-4 pb-8 px-8 space-y-5">
             <form onSubmit={handleSubmit} className="space-y-4">
-              {mode === "register" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="firstName">Nome</Label>
-                    <Input
-                      id="firstName"
-                      placeholder="João"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      required
-                      disabled={loading}
-                      data-testid="input-first-name"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="lastName">Sobrenome</Label>
-                    <Input
-                      id="lastName"
-                      placeholder="Silva"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      required
-                      disabled={loading}
-                      data-testid="input-last-name"
-                    />
-                  </div>
-                </div>
-              )}
-
               <div className="space-y-1.5">
                 <Label htmlFor="email">E-mail</Label>
                 <Input
@@ -213,7 +179,7 @@ export default function Login() {
             </Button>
 
             <p className="text-center text-xs text-muted-foreground">
-              Acesso restrito a gestores e profissionais de Recursos Humanos.
+              Acesso restrito a coordenadores e profissionais de Recursos Humanos.
             </p>
           </CardContent>
         </Card>
