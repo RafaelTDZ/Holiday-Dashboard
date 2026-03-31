@@ -50,10 +50,9 @@ export function calculateVacationStats(
   // Proportional accrual: 30 days per year, shown from day 1
   const daysEarned = (daysWorked / 365.25) * 30;
 
-  // Days taken: only count past and currently ongoing APPROVED vacations (not future ones)
+  // Days taken: count ALL approved vacations (past, ongoing, and future)
   let daysTaken = 0;
   for (const v of approvedVacations) {
-    if (v.startDate > todayStr) continue; // skip future vacations
     const start = new Date(v.startDate + "T00:00:00Z");
     const end = new Date(v.endDate + "T00:00:00Z");
     const duration =
