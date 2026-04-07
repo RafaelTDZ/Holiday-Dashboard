@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +11,7 @@ function getApiBase() {
 }
 
 export default function ForgotPassword() {
-  const [, navigate] = useLocation();
+  const loginUrl = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -69,7 +68,7 @@ export default function ForgotPassword() {
                 <p className="text-sm text-muted-foreground">
                   Se houver uma conta vinculada ao e-mail <strong>{email}</strong>, você receberá um link para redefinir a senha em breve. O link expira em 1 hora.
                 </p>
-                <Button variant="outline" className="w-full mt-2" onClick={() => navigate("/")}>
+                <Button variant="outline" className="w-full mt-2" onClick={() => window.location.href = loginUrl}>
                   Voltar ao login
                 </Button>
               </div>
@@ -107,7 +106,7 @@ export default function ForgotPassword() {
                 <button
                   type="button"
                   className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mx-auto"
-                  onClick={() => navigate("/")}
+                  onClick={() => window.location.href = loginUrl}
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Voltar ao login

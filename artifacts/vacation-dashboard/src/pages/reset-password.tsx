@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +11,7 @@ function getApiBase() {
 }
 
 export default function ResetPassword() {
-  const [, navigate] = useLocation();
+  const loginUrl = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
   const token = new URLSearchParams(window.location.search).get("token") ?? "";
 
   const [password, setPassword] = useState("");
@@ -62,7 +61,7 @@ export default function ResetPassword() {
           <CardContent className="pt-10 pb-8 px-8 flex flex-col items-center gap-4 text-center">
             <AlertTriangle className="h-12 w-12 text-amber-500" />
             <p className="font-medium">Link inválido ou incompleto.</p>
-            <Button variant="outline" onClick={() => navigate("/")}>Voltar ao login</Button>
+            <Button variant="outline" onClick={() => window.location.href = loginUrl}>Voltar ao login</Button>
           </CardContent>
         </Card>
       </div>
@@ -94,7 +93,7 @@ export default function ResetPassword() {
                 <p className="text-sm text-muted-foreground">
                   Sua senha foi redefinida. Você já pode fazer login com a nova senha.
                 </p>
-                <Button className="w-full mt-2" onClick={() => navigate("/")}>
+                <Button className="w-full mt-2" onClick={() => window.location.href = loginUrl}>
                   Ir para o login
                 </Button>
               </div>
