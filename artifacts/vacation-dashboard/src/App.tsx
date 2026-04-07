@@ -10,6 +10,8 @@ import Dashboard from "./pages/dashboard";
 import EmployeesList from "./pages/employees/index";
 import EmployeeDetail from "./pages/employees/detail";
 import Login from "./pages/login";
+import ForgotPassword from "./pages/forgot-password";
+import ResetPassword from "./pages/reset-password";
 import NotFound from "./pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -34,6 +36,9 @@ function Router() {
   }
 
   if (!isAuthenticated) {
+    const path = window.location.pathname.replace(import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "", "");
+    if (path.startsWith("/forgot-password")) return <ForgotPassword />;
+    if (path.startsWith("/reset-password")) return <ResetPassword />;
     return <Login />;
   }
 

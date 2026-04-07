@@ -7,8 +7,10 @@ import {
   ExchangeMobileAuthorizationCodeResponse,
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
-import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { eq, and, gt } from "drizzle-orm";
+import { db, usersTable, passwordResetTokensTable } from "@workspace/db";
+import { randomBytes } from "crypto";
+import { sendPasswordResetEmail } from "../lib/email";
 import {
   clearSession,
   getOidcConfig,
@@ -300,6 +302,66 @@ router.post("/auth/login-local", async (req: Request, res: Response): Promise<vo
 
   const sid = await createSession(sessionData);
   setSessionCookie(res, sid);
+  res.json({ ok: true });
+});
+
+router.post("/auth/forgot-password", async (req: Request, res: Response): Promise<void> => {
+  const { email } = req.body ?? {};
+  if (!email || typeof email !== "string") {
+    res.status(400).json({ error: "E-mail é obrigatório." });
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
+
+  // Always return 200 to avoid leaking which emails are registered
+  if (!user || !user.passwordHash) {
+    res.json({ ok: true });
+    return;
+  }
+
+  // Delete any existing token for this user
+  await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.userId, user.id));
+
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await db.insert(passwordResetTokensTable).values({ token, userId: user.id, expiresAt });
+
+  const baseUrl = process.env.APP_URL ?? `${req.protocol}://${req.get("host")}`;
+  const appBase = process.env.APP_BASE_PATH ?? "";
+  const resetUrl = `${baseUrl}${appBase}/reset-password?token=${token}`;
+
+  await sendPasswordResetEmail(email, resetUrl);
+
+  res.json({ ok: true });
+});
+
+router.post("/auth/reset-password", async (req: Request, res: Response): Promise<void> => {
+  const { token, password } = req.body ?? {};
+  if (!token || !password || typeof token !== "string" || typeof password !== "string") {
+    res.status(400).json({ error: "Token e nova senha são obrigatórios." });
+    return;
+  }
+  if (password.length < 6) {
+    res.status(400).json({ error: "A nova senha deve ter pelo menos 6 caracteres." });
+    return;
+  }
+
+  const [record] = await db
+    .select()
+    .from(passwordResetTokensTable)
+    .where(and(eq(passwordResetTokensTable.token, token), gt(passwordResetTokensTable.expiresAt, new Date())));
+
+  if (!record) {
+    res.status(400).json({ error: "Link de redefinição inválido ou expirado." });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  await db.update(usersTable).set({ passwordHash, updatedAt: new Date() }).where(eq(usersTable.id, record.userId));
+  await db.delete(passwordResetTokensTable).where(eq(passwordResetTokensTable.token, token));
+
   res.json({ ok: true });
 });
 

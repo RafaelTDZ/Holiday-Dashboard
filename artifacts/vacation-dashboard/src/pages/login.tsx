@@ -128,6 +128,18 @@ export default function Login() {
                 ) : null}
                 {mode === "login" ? "Entrar" : "Criar conta"}
               </Button>
+
+              {mode === "login" && (
+                <div className="text-center">
+                  <a
+                    href={`${import.meta.env.BASE_URL?.replace(/\/$/, "")}/forgot-password`}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid="link-forgot-password"
+                  >
+                    Esqueci minha senha
+                  </a>
+                </div>
+              )}
             </form>
 
             <div className="text-center text-sm">
