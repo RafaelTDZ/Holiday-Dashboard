@@ -14,4 +14,8 @@ export interface CreateEmployeeBody {
   /** @minLength 1 */
   department: string;
   hireDate: Date;
+  /** @minLength 1 */
+  email: string;
+  /** @minLength 6 */
+  password: string;
 }

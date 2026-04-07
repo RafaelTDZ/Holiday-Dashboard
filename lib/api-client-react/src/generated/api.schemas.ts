@@ -130,6 +130,10 @@ export interface CreateEmployeeBody {
   /** @minLength 1 */
   department: string;
   hireDate: string;
+  /** @minLength 1 */
+  email: string;
+  /** @minLength 6 */
+  password: string;
 }
 
 export interface UpdateEmployeeBody {

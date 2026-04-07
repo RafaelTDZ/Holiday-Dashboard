@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
-import { db, employeesTable, vacationsTable } from "@workspace/db";
+import bcrypt from "bcryptjs";
+import { db, employeesTable, vacationsTable, usersTable } from "@workspace/db";
 import {
   CreateEmployeeBody,
   UpdateEmployeeBody,
@@ -59,9 +60,27 @@ router.post("/employees", async (req: Request, res: Response): Promise<void> => 
     return;
   }
 
+  const { email, password, ...employeeFields } = parsed.data;
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail));
+
+  let userId: string;
+  if (existingUser) {
+    userId = existingUser.id;
+  } else {
+    const passwordHash = await bcrypt.hash(password, 12);
+    const [newUser] = await db.insert(usersTable).values({
+      email: normalizedEmail,
+      passwordHash,
+    }).returning();
+    userId = newUser.id;
+  }
+
   const insertData = {
-    ...parsed.data,
-    hireDate: toDateStr(parsed.data.hireDate as Date | string),
+    ...employeeFields,
+    hireDate: toDateStr(employeeFields.hireDate as Date | string),
+    userId,
   };
   const [emp] = await db.insert(employeesTable).values(insertData).returning();
   const stats = calculateVacationStats(emp.hireDate, []);

@@ -135,6 +135,8 @@ export const CreateEmployeeBody = zod.object({
   role: zod.string().min(1),
   department: zod.string().min(1),
   hireDate: zod.coerce.date(),
+  email: zod.string().email(),
+  password: zod.string().min(6),
 });
 
 /**

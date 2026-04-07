@@ -7,8 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
-type Mode = "login" | "register";
-
 function getApiBase() {
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
   return `${base}/api`;
@@ -18,7 +16,6 @@ export default function Login() {
   const { login } = useAuth();
   const { toast } = useToast();
 
-  const [mode, setMode] = useState<Mode>("login");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -30,13 +27,10 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const endpoint = mode === "login" ? "/auth/login-local" : "/auth/register-local";
-      const body = { email, password };
-
-      const res = await fetch(`${getApiBase()}${endpoint}`, {
+      const res = await fetch(`${getApiBase()}/auth/login-local`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ email, password }),
         credentials: "include",
       });
 
@@ -69,9 +63,7 @@ export default function Login() {
           <CardHeader className="text-center pb-2">
             <CardTitle className="text-2xl font-bold tracking-tight">Dashboard de Férias</CardTitle>
             <CardDescription className="text-base mt-2">
-              {mode === "login"
-                ? "Entre com suas credenciais para continuar."
-                : "Crie sua conta para acessar o sistema."}
+              Entre com suas credenciais para continuar.
             </CardDescription>
           </CardHeader>
 
@@ -97,7 +89,7 @@ export default function Login() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder={mode === "register" ? "Mínimo 6 caracteres" : "••••••••"}
+                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -126,49 +118,19 @@ export default function Login() {
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : null}
-                {mode === "login" ? "Entrar" : "Criar conta"}
+                Entrar
               </Button>
 
-              {mode === "login" && (
-                <div className="text-center">
-                  <a
-                    href={`${import.meta.env.BASE_URL?.replace(/\/$/, "")}/forgot-password`}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid="link-forgot-password"
-                  >
-                    Esqueci minha senha
-                  </a>
-                </div>
-              )}
+              <div className="text-center">
+                <a
+                  href={`${import.meta.env.BASE_URL?.replace(/\/$/, "")}/forgot-password`}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="link-forgot-password"
+                >
+                  Esqueci minha senha
+                </a>
+              </div>
             </form>
-
-            <div className="text-center text-sm">
-              {mode === "login" ? (
-                <span className="text-muted-foreground">
-                  Não tem conta?{" "}
-                  <button
-                    type="button"
-                    className="text-primary font-medium hover:underline"
-                    onClick={() => { setMode("register"); setPassword(""); }}
-                    data-testid="link-to-register"
-                  >
-                    Criar conta
-                  </button>
-                </span>
-              ) : (
-                <span className="text-muted-foreground">
-                  Já tem conta?{" "}
-                  <button
-                    type="button"
-                    className="text-primary font-medium hover:underline"
-                    onClick={() => { setMode("login"); setPassword(""); }}
-                    data-testid="link-to-login"
-                  >
-                    Entrar
-                  </button>
-                </span>
-              )}
-            </div>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -189,10 +151,6 @@ export default function Login() {
             >
               Entrar com Replit
             </Button>
-
-            <p className="text-center text-xs text-muted-foreground">
-              Acesso restrito a coordenadores e profissionais de Recursos Humanos.
-            </p>
           </CardContent>
         </Card>
       </div>

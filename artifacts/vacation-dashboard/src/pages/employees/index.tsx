@@ -42,7 +42,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Search, Plus, UserCircle, Calendar, Briefcase } from "lucide-react";
+import { Search, Plus, UserCircle, Calendar, Briefcase, Mail, Lock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -60,7 +60,9 @@ const createEmployeeSchema = z.object({
   name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
   role: z.string().min(2, "Cargo deve ter no mínimo 2 caracteres"),
   department: z.enum(DEPARTMENTS),
-  hireDate: z.string().refine(val => !isNaN(Date.parse(val)), "Data inválida")
+  hireDate: z.string().refine(val => !isNaN(Date.parse(val)), "Data inválida"),
+  email: z.string().email("E-mail inválido"),
+  password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
 });
 
 export default function EmployeesList() {
@@ -82,6 +84,8 @@ export default function EmployeesList() {
       role: "",
       department: "",
       hireDate: new Date().toISOString().split('T')[0],
+      email: "",
+      password: "",
     },
   });
 
@@ -209,6 +213,43 @@ export default function EmployeesList() {
                       </FormItem>
                     )}
                   />
+                </div>
+                <div className="border-t pt-4 mt-2">
+                  <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wide">Acesso ao sistema</p>
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>E-mail de acesso</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input type="email" placeholder="funcionario@empresa.com" className="pl-9" {...field} data-testid="input-email" />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Senha inicial</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input type="password" placeholder="Mínimo 6 caracteres" className="pl-9" {...field} data-testid="input-password" />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
                 <DialogFooter className="pt-4">
                   <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
