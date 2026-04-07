@@ -74,7 +74,9 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Siren
+  Siren,
+  TrendingDown,
+  DollarSign,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -94,6 +96,12 @@ const createVacationSchema = z.object({
 }).refine(data => new Date(data.endDate) >= new Date(data.startDate), {
   message: "A data de término deve ser após o início",
   path: ["endDate"]
+});
+
+const vacationSaleSchema = z.object({
+  daysSold: z.coerce.number().int("Deve ser um número inteiro").min(1, "Mínimo de 1 dia"),
+  saleDate: z.string().refine(val => !isNaN(Date.parse(val)), "Data inválida"),
+  notes: z.string().optional(),
 });
 
 function VacationStatusBadge({ status }: { status: string }) {
@@ -132,6 +140,7 @@ export default function EmployeeDetail() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isVacationOpen, setIsVacationOpen] = useState(false);
   const [isEditVacationOpen, setIsEditVacationOpen] = useState(false);
+  const [isSaleOpen, setIsSaleOpen] = useState(false);
   const [editingVacationId, setEditingVacationId] = useState<number | null>(null);
   const [overlapCheck, setOverlapCheck] = useState<{
     vacationId: number;
@@ -155,6 +164,63 @@ export default function EmployeeDetail() {
       startDate: "",
       endDate: "",
       notes: ""
+    },
+  });
+
+  const saleForm = useForm<z.infer<typeof vacationSaleSchema>>({
+    resolver: zodResolver(vacationSaleSchema),
+    defaultValues: {
+      daysSold: 1,
+      saleDate: new Date().toISOString().split("T")[0],
+      notes: "",
+    },
+  });
+
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const createSaleMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof vacationSaleSchema>) => {
+      const res = await fetch(`${base}/api/employees/${employeeId}/vacation-sales`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...values, daysSold: Number(values.daysSold) }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao registrar venda");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employeeId) });
+      queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+      toast({ title: "Venda registrada", description: "Os dias foram descontados do saldo." });
+      setIsSaleOpen(false);
+      saleForm.reset({ daysSold: 1, saleDate: new Date().toISOString().split("T")[0], notes: "" });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erro ao registrar venda", description: err.message });
+    },
+  });
+
+  const deleteSaleMutation = useMutation({
+    mutationFn: async (saleId: number) => {
+      const res = await fetch(`${base}/api/employees/${employeeId}/vacation-sales/${saleId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Erro ao excluir");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employeeId) });
+      queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
+      toast({ title: "Venda removida", description: "Os dias foram devolvidos ao saldo." });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erro", description: err.message });
     },
   });
 
@@ -283,7 +349,6 @@ export default function EmployeeDetail() {
   const checkAndApprove = async (vacationId: number, startDate: string, endDate: string) => {
     setApprovalLoading(true);
     try {
-      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
       const res = await fetch(`${base}/api/vacations?status=approved`, { credentials: "include" });
       const data = await res.json();
       const approved: Array<{ id: number; employeeId: number; employeeName: string; startDate: string; endDate: string }> = data.vacations ?? [];
@@ -380,6 +445,7 @@ export default function EmployeeDetail() {
             </div>
 
             {isManager && (
+              <>
               <div className="pt-4 grid grid-cols-2 gap-2">
                 <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
                   <DialogTrigger asChild>
@@ -480,6 +546,15 @@ export default function EmployeeDetail() {
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
+              <Button
+                variant="outline"
+                className="w-full mt-2"
+                data-testid="button-sell-days"
+                onClick={() => setIsSaleOpen(true)}
+              >
+                <TrendingDown className="w-4 h-4 mr-2" /> Vender Dias
+              </Button>
+              </>
             )}
           </CardContent>
         </Card>
@@ -729,6 +804,81 @@ export default function EmployeeDetail() {
               )}
             </CardContent>
           </Card>
+
+          {/* Vacation Sales History — coordinator only */}
+          {isManager && (
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-amber-500" />
+                    Venda de Dias de Férias
+                  </CardTitle>
+                  <CardDescription>Dias convertidos em abono pecuniário (máx. 1/3 do período)</CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {!employee.vacationSales || (employee.vacationSales as any[]).length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    Nenhuma venda registrada para este funcionário.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(employee.vacationSales as any[]).map((sale: any) => (
+                      <div key={sale.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors group">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+                            <TrendingDown className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm">{sale.daysSold} {sale.daysSold === 1 ? "dia vendido" : "dias vendidos"}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(parseISO(sale.saleDate), "dd/MM/yyyy")}
+                              {sale.notes && <span className="ml-2 italic">— {sale.notes}</span>}
+                            </p>
+                          </div>
+                        </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remover venda?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Os {sale.daysSold} dias serão devolvidos ao saldo de férias do funcionário.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteSaleMutation.mutate(sale.id)}
+                                className="bg-destructive text-destructive-foreground"
+                              >
+                                Remover
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    ))}
+                    <div className="mt-4 p-3 rounded-lg bg-muted/50 flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Total vendido</span>
+                      <span className="font-bold text-amber-600 dark:text-amber-400">
+                        {(employee.vacationSales as any[]).reduce((acc: number, s: any) => acc + s.daysSold, 0)} dias
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
@@ -832,6 +982,78 @@ export default function EmployeeDetail() {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    {/* Vender Dias Dialog */}
+    <Dialog open={isSaleOpen} onOpenChange={(open) => { setIsSaleOpen(open); if (!open) saleForm.reset({ daysSold: 1, saleDate: new Date().toISOString().split("T")[0], notes: "" }); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <TrendingDown className="w-5 h-5 text-amber-500" />
+            Vender Dias de Férias
+          </DialogTitle>
+          <DialogDescription>
+            Registre a conversão de dias de férias em abono pecuniário. Saldo disponível:{" "}
+            <strong className="text-foreground">{employee?.vacationBalanceDays?.toFixed(1) ?? "0"} dias</strong>
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...saleForm}>
+          <form onSubmit={saleForm.handleSubmit((v) => createSaleMutation.mutate(v))} className="space-y-4 pt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={saleForm.control}
+                name="daysSold"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Dias a Vender</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={1} max={Math.floor(employee?.vacationBalanceDays ?? 0)} {...field} data-testid="input-days-sold" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={saleForm.control}
+                name="saleDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data da Venda</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} data-testid="input-sale-date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={saleForm.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Observações (Opcional)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Ex: Acordo de abono pecuniário conforme Art. 143 CLT" className="resize-none h-20" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsSaleOpen(false)}>Cancelar</Button>
+              <Button
+                type="submit"
+                disabled={createSaleMutation.isPending}
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+                data-testid="button-confirm-sale"
+              >
+                {createSaleMutation.isPending ? "Registrando..." : "Confirmar Venda"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }

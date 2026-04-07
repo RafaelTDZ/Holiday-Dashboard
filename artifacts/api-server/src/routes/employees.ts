@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sum } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { db, employeesTable, vacationsTable, usersTable } from "@workspace/db";
+import { db, employeesTable, vacationsTable, usersTable, vacationSalesTable } from "@workspace/db";
 import {
   CreateEmployeeBody,
   UpdateEmployeeBody,
@@ -23,6 +23,7 @@ router.get("/employees", async (req: Request, res: Response): Promise<void> => {
 
   const employees = await db.select().from(employeesTable).orderBy(employeesTable.name);
   const allVacations = await db.select().from(vacationsTable);
+  const allSales = await db.select().from(vacationSalesTable);
 
   const vacationsByEmployee = new Map<number, typeof allVacations>();
   for (const v of allVacations) {
@@ -31,9 +32,15 @@ router.get("/employees", async (req: Request, res: Response): Promise<void> => {
     vacationsByEmployee.set(v.employeeId, list);
   }
 
+  const soldByEmployee = new Map<number, number>();
+  for (const s of allSales) {
+    soldByEmployee.set(s.employeeId, (soldByEmployee.get(s.employeeId) ?? 0) + s.daysSold);
+  }
+
   const result = employees.map((emp) => {
     const vacations = vacationsByEmployee.get(emp.id) ?? [];
-    const stats = calculateVacationStats(emp.hireDate, vacations);
+    const soldDays = soldByEmployee.get(emp.id) ?? 0;
+    const stats = calculateVacationStats(emp.hireDate, vacations, soldDays);
     return {
       id: emp.id,
       name: emp.name,
@@ -83,7 +90,7 @@ router.post("/employees", async (req: Request, res: Response): Promise<void> => 
     userId,
   };
   const [emp] = await db.insert(employeesTable).values(insertData).returning();
-  const stats = calculateVacationStats(emp.hireDate, []);
+  const stats = calculateVacationStats(emp.hireDate, [], 0);
 
   res.status(201).json({
     ...emp,
@@ -117,7 +124,14 @@ router.get("/employees/:id", async (req: Request, res: Response): Promise<void> 
     .where(eq(vacationsTable.employeeId, id))
     .orderBy(vacationsTable.startDate);
 
-  const stats = calculateVacationStats(emp.hireDate, vacations);
+  const sales = await db
+    .select()
+    .from(vacationSalesTable)
+    .where(eq(vacationSalesTable.employeeId, id))
+    .orderBy(vacationSalesTable.saleDate);
+
+  const soldDays = sales.reduce((acc, s) => acc + s.daysSold, 0);
+  const stats = calculateVacationStats(emp.hireDate, vacations, soldDays);
 
   const vacationItems = vacations.map((v) => ({
     id: v.id,
@@ -134,6 +148,7 @@ router.get("/employees/:id", async (req: Request, res: Response): Promise<void> 
     ...emp,
     ...stats,
     vacations: vacationItems,
+    vacationSales: sales,
   });
 });
 
@@ -190,7 +205,13 @@ router.put("/employees/:id", async (req: Request, res: Response): Promise<void> 
     .where(eq(vacationsTable.employeeId, id))
     .orderBy(vacationsTable.startDate);
 
-  const stats = calculateVacationStats(emp.hireDate, vacations);
+  const sales = await db
+    .select()
+    .from(vacationSalesTable)
+    .where(eq(vacationSalesTable.employeeId, id));
+
+  const soldDays = sales.reduce((acc, s) => acc + s.daysSold, 0);
+  const stats = calculateVacationStats(emp.hireDate, vacations, soldDays);
 
   const vacationItems = vacations.map((v) => ({
     id: v.id,
@@ -207,6 +228,7 @@ router.put("/employees/:id", async (req: Request, res: Response): Promise<void> 
     ...emp,
     ...stats,
     vacations: vacationItems,
+    vacationSales: sales,
   });
 });
 
@@ -234,6 +256,111 @@ router.delete("/employees/:id", async (req: Request, res: Response): Promise<voi
 
   if (!emp) {
     res.status(404).json({ error: "Employee not found" });
+    return;
+  }
+
+  res.sendStatus(204);
+});
+
+// ── Vacation Sales ────────────────────────────────────────────────────
+
+router.get("/employees/:id/vacation-sales", async (req: Request, res: Response): Promise<void> => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid employee ID" });
+    return;
+  }
+
+  const sales = await db
+    .select()
+    .from(vacationSalesTable)
+    .where(eq(vacationSalesTable.employeeId, id))
+    .orderBy(vacationSalesTable.saleDate);
+
+  res.json({ vacationSales: sales });
+});
+
+router.post("/employees/:id/vacation-sales", async (req: Request, res: Response): Promise<void> => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  if (!req.user!.isManager) {
+    res.status(403).json({ error: "Apenas coordenadores podem registrar venda de dias." });
+    return;
+  }
+
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid employee ID" });
+    return;
+  }
+
+  const [emp] = await db.select().from(employeesTable).where(eq(employeesTable.id, id));
+  if (!emp) {
+    res.status(404).json({ error: "Employee not found" });
+    return;
+  }
+
+  const { daysSold, saleDate, notes } = req.body ?? {};
+  if (!daysSold || typeof daysSold !== "number" || daysSold <= 0 || !Number.isInteger(daysSold)) {
+    res.status(400).json({ error: "Número de dias inválido. Deve ser um inteiro positivo." });
+    return;
+  }
+  if (!saleDate || typeof saleDate !== "string") {
+    res.status(400).json({ error: "Data da venda é obrigatória." });
+    return;
+  }
+
+  // Guard: can't sell more than current balance
+  const vacations = await db.select().from(vacationsTable).where(eq(vacationsTable.employeeId, id));
+  const existingSales = await db.select().from(vacationSalesTable).where(eq(vacationSalesTable.employeeId, id));
+  const alreadySold = existingSales.reduce((acc, s) => acc + s.daysSold, 0);
+  const stats = calculateVacationStats(emp.hireDate, vacations, alreadySold);
+
+  if (daysSold > Math.floor(stats.vacationBalanceDays)) {
+    res.status(400).json({
+      error: `Saldo insuficiente. Saldo disponível: ${stats.vacationBalanceDays.toFixed(1)} dias.`,
+    });
+    return;
+  }
+
+  const [sale] = await db
+    .insert(vacationSalesTable)
+    .values({ employeeId: id, daysSold, saleDate, notes: notes ?? null })
+    .returning();
+
+  res.status(201).json(sale);
+});
+
+router.delete("/employees/:id/vacation-sales/:saleId", async (req: Request, res: Response): Promise<void> => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  if (!req.user!.isManager) {
+    res.status(403).json({ error: "Apenas coordenadores podem excluir registros de venda." });
+    return;
+  }
+
+  const saleId = parseInt(req.params.saleId, 10);
+  if (isNaN(saleId)) {
+    res.status(400).json({ error: "Invalid sale ID" });
+    return;
+  }
+
+  const [sale] = await db
+    .delete(vacationSalesTable)
+    .where(eq(vacationSalesTable.id, saleId))
+    .returning();
+
+  if (!sale) {
+    res.status(404).json({ error: "Venda não encontrada" });
     return;
   }
 

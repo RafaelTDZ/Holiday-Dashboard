@@ -7,6 +7,7 @@ export interface VacationStats {
   nextVacationStart: string | null;
   eligibleForVacation: boolean;
   firstEligibilityDate: string;
+  daysSold: number;
 }
 
 /**
@@ -17,10 +18,12 @@ export interface VacationStats {
  *   daysEarned = floor(yearsWorked) * 30
  * - Only APPROVED vacations count toward balance and isOnVacation.
  * - daysUntilNextVacation = days until the next annual anniversary.
+ * - soldDays are deducted from the balance.
  */
 export function calculateVacationStats(
   hireDate: string,
   vacations: Pick<Vacation, "startDate" | "endDate" | "status">[],
+  soldDays: number = 0,
   today: Date = new Date(),
 ): VacationStats {
   const hire = new Date(hireDate + "T00:00:00Z");
@@ -60,7 +63,7 @@ export function calculateVacationStats(
     daysTaken += Math.max(0, duration);
   }
 
-  const vacationBalanceDays = Math.max(0, daysEarned - daysTaken);
+  const vacationBalanceDays = Math.max(0, daysEarned - daysTaken - soldDays);
 
   // Is on vacation today? (approved only)
   const isOnVacation = approvedVacations.some(
@@ -115,6 +118,7 @@ export function calculateVacationStats(
     nextVacationStart,
     eligibleForVacation,
     firstEligibilityDate,
+    daysSold: soldDays,
   };
 }
 
