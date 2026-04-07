@@ -133,6 +133,11 @@ export default function EmployeeDetail() {
   const [isVacationOpen, setIsVacationOpen] = useState(false);
   const [isEditVacationOpen, setIsEditVacationOpen] = useState(false);
   const [editingVacationId, setEditingVacationId] = useState<number | null>(null);
+  const [overlapCheck, setOverlapCheck] = useState<{
+    vacationId: number;
+    conflicts: Array<{ employeeName: string; startDate: string; endDate: string }>;
+  } | null>(null);
+  const [approvalLoading, setApprovalLoading] = useState(false);
 
   const editForm = useForm<z.infer<typeof updateEmployeeSchema>>({
     resolver: zodResolver(updateEmployeeSchema),
@@ -273,6 +278,28 @@ export default function EmployeeDetail() {
         toast({ variant: "destructive", title: "Erro", description: err.data?.error ?? err.message });
       }
     });
+  };
+
+  const checkAndApprove = async (vacationId: number, startDate: string, endDate: string) => {
+    setApprovalLoading(true);
+    try {
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      const res = await fetch(`${base}/api/vacations?status=approved`, { credentials: "include" });
+      const data = await res.json();
+      const approved: Array<{ id: number; employeeId: number; employeeName: string; startDate: string; endDate: string }> = data.vacations ?? [];
+      const conflicts = approved
+        .filter((v) => v.employeeId !== employeeId && v.startDate <= endDate && v.endDate >= startDate)
+        .map((v) => ({ employeeName: v.employeeName ?? "Funcionário", startDate: v.startDate, endDate: v.endDate }));
+      if (conflicts.length > 0) {
+        setOverlapCheck({ vacationId, conflicts });
+      } else {
+        handleVacationStatus(vacationId, "approved");
+      }
+    } catch {
+      handleVacationStatus(vacationId, "approved");
+    } finally {
+      setApprovalLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -640,8 +667,8 @@ export default function EmployeeDetail() {
                                     className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
                                     title="Aprovar férias"
                                     data-testid={`button-approve-vacation-${vacation.id}`}
-                                    onClick={() => handleVacationStatus(vacation.id, "approved")}
-                                    disabled={updateVacationStatus.isPending}
+                                    onClick={() => checkAndApprove(vacation.id, vacation.startDate, vacation.endDate)}
+                                    disabled={updateVacationStatus.isPending || approvalLoading}
                                   >
                                     <CheckCircle className="h-4 w-4" />
                                   </Button>
@@ -759,6 +786,52 @@ export default function EmployeeDetail() {
         </Form>
       </DialogContent>
     </Dialog>
+
+    {/* Overlap warning dialog */}
+    <AlertDialog open={!!overlapCheck} onOpenChange={(open) => { if (!open) setOverlapCheck(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+            <AlertTriangle className="h-5 w-5" />
+            Conflito de Férias Detectado
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3">
+              <p>
+                Este período de férias se sobrepõe às férias já aprovadas de outro(s) funcionário(s):
+              </p>
+              <div className="space-y-2">
+                {overlapCheck?.conflicts.map((c, i) => (
+                  <div key={i} className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold">{c.employeeName}</p>
+                      <p className="text-xs opacity-80">
+                        {new Date(c.startDate + "T12:00:00").toLocaleDateString("pt-BR")} –{" "}
+                        {new Date(c.endDate + "T12:00:00").toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm">Deseja aprovar mesmo assim?</p>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-amber-500 hover:bg-amber-600 text-white"
+            onClick={() => {
+              if (overlapCheck) handleVacationStatus(overlapCheck.vacationId, "approved");
+              setOverlapCheck(null);
+            }}
+          >
+            Aprovar mesmo assim
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }

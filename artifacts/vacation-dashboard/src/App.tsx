@@ -9,6 +9,7 @@ import { RegistrationGate } from "./components/registration-gate";
 import Dashboard from "./pages/dashboard";
 import EmployeesList from "./pages/employees/index";
 import EmployeeDetail from "./pages/employees/detail";
+import CalendarPage from "./pages/calendar";
 import Login from "./pages/login";
 import ForgotPassword from "./pages/forgot-password";
 import ResetPassword from "./pages/reset-password";
@@ -49,6 +50,7 @@ function Router() {
           <Route path="/" component={Dashboard} />
           <Route path="/employees" component={EmployeesList} />
           <Route path="/employees/:id" component={EmployeeDetail} />
+          <Route path="/calendar" component={CalendarPage} />
           <Route component={NotFound} />
         </Switch>
       </Layout>

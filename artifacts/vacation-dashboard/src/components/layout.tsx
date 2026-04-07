@@ -13,7 +13,7 @@ import {
   SidebarProvider, 
   SidebarTrigger 
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Users, LogOut, Briefcase } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, LogOut, Briefcase } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
@@ -56,6 +56,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       <Link href="/employees">
                         <Users />
                         <span>Funcionários</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location === "/calendar"}
+                      tooltip="Calendário"
+                    >
+                      <Link href="/calendar">
+                        <CalendarDays />
+                        <span>Calendário</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

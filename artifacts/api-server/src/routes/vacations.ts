@@ -1,10 +1,46 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 import { db, vacationsTable, employeesTable } from "@workspace/db";
 import { CreateVacationBody } from "@workspace/api-zod";
 import { vacationDurationDays, calculateVacationStats } from "../lib/vacation-utils";
 
 const router: IRouter = Router();
+
+router.get(
+  "/vacations",
+  async (req: Request, res: Response): Promise<void> => {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { status } = req.query;
+
+    const rows = await db
+      .select({
+        id: vacationsTable.id,
+        employeeId: vacationsTable.employeeId,
+        employeeName: employeesTable.name,
+        employeeDepartment: employeesTable.department,
+        startDate: vacationsTable.startDate,
+        endDate: vacationsTable.endDate,
+        notes: vacationsTable.notes,
+        status: vacationsTable.status,
+        createdAt: vacationsTable.createdAt,
+      })
+      .from(vacationsTable)
+      .leftJoin(employeesTable, eq(vacationsTable.employeeId, employeesTable.id))
+      .where(status ? eq(vacationsTable.status, status as string) : undefined)
+      .orderBy(vacationsTable.startDate);
+
+    res.json({
+      vacations: rows.map((v) => ({
+        ...v,
+        durationDays: vacationDurationDays(v.startDate, v.endDate),
+      })),
+    });
+  },
+);
 
 router.get(
   "/employees/:id/vacations",
