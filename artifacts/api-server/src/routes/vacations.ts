@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, and, ne } from "drizzle-orm";
-import { db, vacationsTable, employeesTable } from "@workspace/db";
+import { db, vacationsTable, employeesTable, usersTable, notificationsTable } from "@workspace/db";
 import { CreateVacationBody } from "@workspace/api-zod";
 import { vacationDurationDays, calculateVacationStats } from "../lib/vacation-utils";
 
@@ -140,6 +140,34 @@ router.post(
       .insert(vacationsTable)
       .values({ employeeId, startDate, endDate, notes: notes ?? null, status: "pending" })
       .returning();
+
+    // Notify all coordinators
+    try {
+      const coordinators = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.isManager, true));
+
+      if (coordinators.length > 0) {
+        const fmt = (d: string) =>
+          new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+        const startFormatted = fmt(startDate);
+        const endFormatted = fmt(endDate);
+        const message = `${emp.name} solicitou férias de ${startFormatted} a ${endFormatted}.`;
+
+        await db.insert(notificationsTable).values(
+          coordinators.map((c) => ({
+            userId: c.id,
+            message,
+            vacationId: vacation.id,
+            employeeId: emp.id,
+          })),
+        );
+      }
+    } catch (err) {
+      // Notifications are best-effort — don't fail the request
+      console.error("Failed to create coordinator notifications:", err);
+    }
 
     res.status(201).json({
       id: vacation.id,

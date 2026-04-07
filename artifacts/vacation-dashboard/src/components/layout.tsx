@@ -16,6 +16,7 @@ import {
 import { LayoutDashboard, Users, CalendarDays, LogOut, Briefcase } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "./notification-bell";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -97,11 +98,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </SidebarFooter>
         </Sidebar>
+
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-          <header className="h-16 flex items-center px-6 border-b bg-card/50 backdrop-blur sticky top-0 z-10 lg:hidden">
-            <SidebarTrigger className="-ml-2" />
-            <div className="ml-4 font-semibold">Dashboard de Férias</div>
+          {/* Top header — visible on all screen sizes */}
+          <header className="h-16 flex items-center px-6 border-b bg-card/50 backdrop-blur sticky top-0 z-10">
+            <SidebarTrigger className="-ml-2 lg:hidden" />
+            <div className="ml-4 font-semibold lg:hidden">Dashboard de Férias</div>
+            <div className="ml-auto flex items-center gap-2">
+              <NotificationBell />
+            </div>
           </header>
+
           <div className="flex-1 overflow-auto p-6 md:p-8">
             <div className="mx-auto max-w-6xl">
               {children}
