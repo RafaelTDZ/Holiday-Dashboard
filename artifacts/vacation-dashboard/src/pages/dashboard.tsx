@@ -245,11 +245,13 @@ export default function Dashboard() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
         </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          <Skeleton className="h-[400px] rounded-xl" />
-          <Skeleton className="h-[400px] rounded-xl" />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="flex flex-col gap-6">
+            <Skeleton className="h-[260px] rounded-xl" />
+            <Skeleton className="h-[220px] rounded-xl" />
+          </div>
+          <Skeleton className="h-[500px] rounded-xl" />
         </div>
-        <Skeleton className="h-[420px] rounded-xl" />
       </div>
     );
   }
@@ -327,8 +329,9 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="col-span-1 shadow-sm border-border/50 flex flex-col">
+      <div className="grid gap-6 lg:grid-cols-2 items-start">
+        <div className="flex flex-col gap-6">
+        <Card className="shadow-sm border-border/50 flex flex-col">
           <CardHeader>
             <CardTitle className="text-lg">Próximas Férias</CardTitle>
           </CardHeader>
@@ -378,7 +381,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-1 shadow-sm border-border/50 flex flex-col">
+        <Card className="shadow-sm border-border/50 flex flex-col">
           <CardHeader>
             <CardTitle className="text-lg">Distribuição por Departamento</CardTitle>
           </CardHeader>
@@ -410,10 +413,11 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
-      </div>
+        </div>{/* end left column */}
 
-      {/* Calendar card — full width */}
-      <MiniCalendarCard />
+        {/* Calendar — right column, stretches to match */}
+        <MiniCalendarCard />
+      </div>
     </div>
   );
 }
