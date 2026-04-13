@@ -83,6 +83,8 @@ router.get(
     upcomingVacations.sort((a, b) => a.startDate.localeCompare(b.startDate));
     const upcomingSlice = upcomingVacations.slice(0, 10);
 
+    const pendingRequests = allVacations.filter((v) => v.status === "pending").length;
+
     const departmentBreakdown = Array.from(departmentMap.entries()).map(
       ([department, data]) => ({
         department,
@@ -96,6 +98,7 @@ router.get(
       onVacationToday,
       upcomingVacations: upcomingSlice,
       overdueVacations,
+      pendingRequests,
       departmentBreakdown,
     });
   },

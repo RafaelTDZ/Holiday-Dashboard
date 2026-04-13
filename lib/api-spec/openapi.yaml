@@ -786,7 +786,7 @@ components:
 
     DashboardSummary:
       type: object
-      required: [totalEmployees, onVacationToday, upcomingVacations, overdueVacations, departmentBreakdown]
+      required: [totalEmployees, onVacationToday, upcomingVacations, overdueVacations, pendingRequests, departmentBreakdown]
       properties:
         totalEmployees:
           type: integer
@@ -799,6 +799,9 @@ components:
         overdueVacations:
           type: integer
           description: Employees with overdue vacation balance (>= 30 days balance and no upcoming vacation)
+        pendingRequests:
+          type: integer
+          description: Number of vacation requests awaiting approval
         departmentBreakdown:
           type: array
           items:

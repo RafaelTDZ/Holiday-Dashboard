@@ -234,6 +234,35 @@ router.put(
       return;
     }
 
+    // Notify the employee about the approval/rejection
+    try {
+      const [emp] = await db
+        .select({ userId: employeesTable.userId, id: employeesTable.id })
+        .from(employeesTable)
+        .where(eq(employeesTable.id, vacation.employeeId));
+
+      if (emp?.userId) {
+        const fmt = (d: string) =>
+          new Date(d + "T12:00:00").toLocaleDateString("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          });
+        const statusLabel = status === "approved" ? "aprovadas" : "reprovadas";
+        const message = `Suas férias de ${fmt(vacation.startDate)} a ${fmt(vacation.endDate)} foram ${statusLabel}.`;
+
+        await db.insert(notificationsTable).values({
+          userId: emp.userId,
+          message,
+          vacationId: vacation.id,
+          employeeId: emp.id,
+        });
+      }
+    } catch (err) {
+      // Notifications are best-effort — don't fail the request
+      console.error("Failed to create employee notification:", err);
+    }
+
     res.json({
       id: vacation.id,
       employeeId: vacation.employeeId,

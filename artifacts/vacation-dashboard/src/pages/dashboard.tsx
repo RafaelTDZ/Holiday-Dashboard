@@ -1,6 +1,7 @@
 import { useGetDashboardSummary } from "@workspace/api-client-react";
+import { useAuth } from "@workspace/replit-auth-web";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Sun, AlertTriangle, CalendarDays, ArrowRight } from "lucide-react";
+import { Users, Sun, AlertTriangle, CalendarDays, ArrowRight, Clock } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,14 +11,16 @@ import { Button } from "@/components/ui/button";
 import { MiniCalendarCard } from "@/components/mini-calendar-card";
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const isManager = user?.isManager ?? false;
   const { data: summary, isLoading, error } = useGetDashboardSummary();
 
   if (isLoading) {
     return (
       <div className="space-y-8 animate-pulse">
         <Skeleton className="h-10 w-48" />
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
+        <div className="grid gap-6 grid-cols-2 lg:grid-cols-5">
+          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
         </div>
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="flex flex-col gap-6">
@@ -47,7 +50,7 @@ export default function Dashboard() {
         <p className="text-muted-foreground mt-1">Bem-vindo ao centro de controle de férias.</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 grid-cols-2 lg:grid-cols-5">
         <Card className="border-border/50 shadow-sm hover:shadow transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total de Funcionários</CardTitle>
@@ -101,6 +104,23 @@ export default function Dashboard() {
             <p className="text-xs text-muted-foreground mt-1">Exigem atenção imediata</p>
           </CardContent>
         </Card>
+
+        <Link href="/employees" className="block">
+          <Card className={`border-border/50 shadow-sm hover:shadow transition-shadow h-full cursor-pointer ${isManager && summary.pendingRequests > 0 ? "border-amber-400/60 bg-amber-50/40 dark:bg-amber-950/10" : ""}`}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Solicitações Pendentes</CardTitle>
+              <div className={`h-8 w-8 rounded-full flex items-center justify-center ${summary.pendingRequests > 0 ? "bg-amber-100 dark:bg-amber-900/40" : "bg-muted"}`}>
+                <Clock className={`h-4 w-4 ${summary.pendingRequests > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`} />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-3xl font-bold ${summary.pendingRequests > 0 ? "text-amber-600 dark:text-amber-400" : ""}`} data-testid="stat-pending">
+                {summary.pendingRequests}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Aguardando aprovação</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2 items-start">
