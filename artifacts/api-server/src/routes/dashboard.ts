@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, employeesTable, vacationsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { db, employeesTable, vacationsTable, vacationSalesTable } from "@workspace/db";
 import { calculateVacationStats, vacationDurationDays } from "../lib/vacation-utils";
 
 const router: IRouter = Router();
@@ -14,6 +15,7 @@ router.get(
 
     const employees = await db.select().from(employeesTable);
     const allVacations = await db.select().from(vacationsTable);
+    const allSales = await db.select().from(vacationSalesTable);
 
     const today = new Date();
     const todayStr = new Date(
@@ -27,6 +29,11 @@ router.get(
       const list = vacationsByEmployee.get(v.employeeId) ?? [];
       list.push(v);
       vacationsByEmployee.set(v.employeeId, list);
+    }
+
+    const soldByEmployee = new Map<number, number>();
+    for (const s of allSales) {
+      soldByEmployee.set(s.employeeId, (soldByEmployee.get(s.employeeId) ?? 0) + s.daysSold);
     }
 
     let onVacationToday = 0;
@@ -43,7 +50,8 @@ router.get(
 
     for (const emp of employees) {
       const vacations = vacationsByEmployee.get(emp.id) ?? [];
-      const stats = calculateVacationStats(emp.hireDate, vacations);
+      const soldDays = soldByEmployee.get(emp.id) ?? 0;
+      const stats = calculateVacationStats(emp.hireDate, vacations, soldDays);
 
       const dept = departmentMap.get(emp.department) ?? { count: 0, onVacation: 0 };
       dept.count++;
@@ -60,7 +68,7 @@ router.get(
       }
 
       for (const v of vacations) {
-        if (v.startDate > todayStr) {
+        if (v.status === "approved" && v.startDate > todayStr) {
           upcomingVacations.push({
             employeeId: emp.id,
             employeeName: emp.name,

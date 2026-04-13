@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, and, ne } from "drizzle-orm";
-import { db, vacationsTable, employeesTable, usersTable, notificationsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { db, vacationsTable, employeesTable, usersTable, notificationsTable, vacationSalesTable } from "@workspace/db";
 import { CreateVacationBody } from "@workspace/api-zod";
 import { vacationDurationDays, calculateVacationStats } from "../lib/vacation-utils";
 
@@ -107,7 +107,23 @@ router.post(
       return;
     }
 
-    const { vacationBalanceDays, firstEligibilityDate } = calculateVacationStats(emp.hireDate, []);
+    const existingVacations = await db
+      .select()
+      .from(vacationsTable)
+      .where(eq(vacationsTable.employeeId, employeeId));
+
+    const existingSales = await db
+      .select()
+      .from(vacationSalesTable)
+      .where(eq(vacationSalesTable.employeeId, employeeId));
+
+    const soldDays = existingSales.reduce((acc, s) => acc + s.daysSold, 0);
+
+    const { vacationBalanceDays, firstEligibilityDate } = calculateVacationStats(
+      emp.hireDate,
+      existingVacations,
+      soldDays,
+    );
     if (vacationBalanceDays < 30) {
       res.status(403).json({
         error: `Saldo insuficiente para solicitar férias. Férias disponíveis a partir de ${firstEligibilityDate}.`,
