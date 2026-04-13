@@ -304,7 +304,7 @@ router.put("/employees/:id/password", async (req: Request, res: Response): Promi
     return;
   }
 
-  if (isOwnProfile && !isManager) {
+  if (isOwnProfile) {
     if (typeof currentPassword !== "string" || currentPassword.length === 0) {
       res.status(400).json({ error: "A senha atual é obrigatória." });
       return;
