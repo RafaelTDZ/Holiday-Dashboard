@@ -77,8 +77,15 @@ import {
   Siren,
   TrendingDown,
   DollarSign,
+  ChevronDown,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const DEPARTMENTS = ["Comercial", "Operacional", "Financeiro", "RH"] as const;
 
@@ -546,14 +553,6 @@ export default function EmployeeDetail() {
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
-              <Button
-                variant="outline"
-                className="w-full mt-2"
-                data-testid="button-sell-days"
-                onClick={() => setIsSaleOpen(true)}
-              >
-                <TrendingDown className="w-4 h-4 mr-2" /> Vender Dias
-              </Button>
               </>
             )}
           </CardContent>
@@ -590,12 +589,25 @@ export default function EmployeeDetail() {
               </div>
               <Dialog open={isVacationOpen} onOpenChange={setIsVacationOpen}>
                 {isOwnProfile && employee.vacationBalanceDays >= 30 && (
-                  <DialogTrigger asChild>
-                    <Button size="sm" data-testid="button-add-vacation">
-                      <Plane className="w-4 h-4 mr-2" />
-                      Solicitar Férias
-                    </Button>
-                  </DialogTrigger>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" data-testid="button-add-vacation">
+                        <Plane className="w-4 h-4 mr-2" />
+                        Solicitar Férias
+                        <ChevronDown className="w-3 h-3 ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setIsVacationOpen(true)}>
+                        <Plane className="w-4 h-4 mr-2" />
+                        Solicitar Férias
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setIsSaleOpen(true)}>
+                        <TrendingDown className="w-4 h-4 mr-2 text-amber-500" />
+                        Vender Dias
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
                 <DialogContent>
                   <DialogHeader>
