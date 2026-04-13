@@ -2,6 +2,20 @@
 import subprocess
 import os
 
+# Tentar descobrir o diretório do repositório
+current_dir = os.getcwd()
+# Procurar por pnpm-workspace.yaml para identificar a raiz
+while current_dir != '/':
+    if os.path.exists(os.path.join(current_dir, 'pnpm-workspace.yaml')):
+        repo_dir = current_dir
+        break
+    current_dir = os.path.dirname(current_dir)
+else:
+    # Fallback para diretório atual
+    repo_dir = os.getcwd()
+
+os.chdir(repo_dir)
+
 # Obter diretório atual
 cwd = os.getcwd()
 print(f"[v0] Diretório atual: {cwd}")
