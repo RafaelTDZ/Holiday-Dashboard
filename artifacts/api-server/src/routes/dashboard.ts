@@ -1,5 +1,4 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
 import { db, employeesTable, vacationsTable, vacationSalesTable } from "@workspace/db";
 import { calculateVacationStats, vacationDurationDays } from "../lib/vacation-utils";
 
