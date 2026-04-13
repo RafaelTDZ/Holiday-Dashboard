@@ -42,7 +42,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Search, Plus, UserCircle, Calendar, Briefcase, Mail, Lock } from "lucide-react";
+import { Search, Plus, UserCircle, Calendar, Briefcase, Mail, Lock, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -75,7 +75,26 @@ export default function EmployeesList() {
   const [, setLocation] = useLocation();
 
   const [search, setSearch] = useState("");
+  const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<"name" | "hireDate" | "vacationBalanceDays">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const handleSort = (key: "name" | "hireDate" | "vacationBalanceDays") => {
+    if (sortKey === key) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const SortIcon = ({ col }: { col: "name" | "hireDate" | "vacationBalanceDays" }) => {
+    if (sortKey !== col) return <ChevronsUpDown className="h-3.5 w-3.5 ml-1 text-muted-foreground/50" />;
+    return sortDir === "asc"
+      ? <ChevronUp className="h-3.5 w-3.5 ml-1 text-primary" />
+      : <ChevronDown className="h-3.5 w-3.5 ml-1 text-primary" />;
+  };
 
   const form = useForm<z.infer<typeof createEmployeeSchema>>({
     resolver: zodResolver(createEmployeeSchema),
@@ -111,11 +130,26 @@ export default function EmployeesList() {
     });
   };
 
-  const filteredEmployees = data?.employees.filter(emp => 
-    emp.name.toLowerCase().includes(search.toLowerCase()) ||
-    emp.department.toLowerCase().includes(search.toLowerCase()) ||
-    emp.role.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+  const filteredEmployees = (data?.employees ?? [])
+    .filter(emp => {
+      const matchesSearch = search === "" || 
+        emp.name.toLowerCase().includes(search.toLowerCase()) ||
+        emp.department.toLowerCase().includes(search.toLowerCase()) ||
+        emp.role.toLowerCase().includes(search.toLowerCase());
+      const matchesDept = deptFilter === "all" || emp.department === deptFilter;
+      return matchesSearch && matchesDept;
+    })
+    .sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "name") {
+        cmp = a.name.localeCompare(b.name, "pt-BR");
+      } else if (sortKey === "hireDate") {
+        cmp = a.hireDate.localeCompare(b.hireDate);
+      } else if (sortKey === "vacationBalanceDays") {
+        cmp = a.vacationBalanceDays - b.vacationBalanceDays;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -266,15 +300,28 @@ export default function EmployeesList() {
 
       <div className="bg-card border shadow-sm rounded-xl overflow-hidden">
         <div className="p-4 border-b bg-muted/20">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome, cargo ou departamento..."
-              className="pl-9 bg-background"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              data-testid="input-search-employees"
-            />
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, cargo ou departamento..."
+                className="pl-9 bg-background"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                data-testid="input-search-employees"
+              />
+            </div>
+            <Select value={deptFilter} onValueChange={setDeptFilter}>
+              <SelectTrigger className="w-full sm:w-48 bg-background" data-testid="select-dept-filter">
+                <SelectValue placeholder="Departamento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os departamentos</SelectItem>
+                {DEPARTMENTS.map((dept) => (
+                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -282,10 +329,25 @@ export default function EmployeesList() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead>Nome</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none hover:bg-muted/50 transition-colors"
+                  onClick={() => handleSort("name")}
+                >
+                  <span className="flex items-center">Nome <SortIcon col="name" /></span>
+                </TableHead>
                 <TableHead>Cargo & Departamento</TableHead>
-                <TableHead>Admissão</TableHead>
-                <TableHead className="text-right">Dias de Saldo</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none hover:bg-muted/50 transition-colors"
+                  onClick={() => handleSort("hireDate")}
+                >
+                  <span className="flex items-center">Admissão <SortIcon col="hireDate" /></span>
+                </TableHead>
+                <TableHead
+                  className="text-right cursor-pointer select-none hover:bg-muted/50 transition-colors"
+                  onClick={() => handleSort("vacationBalanceDays")}
+                >
+                  <span className="flex items-center justify-end">Dias de Saldo <SortIcon col="vacationBalanceDays" /></span>
+                </TableHead>
                 <TableHead className="text-right">Status</TableHead>
               </TableRow>
             </TableHeader>

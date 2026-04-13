@@ -78,6 +78,7 @@ import {
   TrendingDown,
   DollarSign,
   ChevronDown,
+  KeyRound,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -109,6 +110,15 @@ const vacationSaleSchema = z.object({
   daysSold: z.coerce.number().int("Deve ser um número inteiro").min(1, "Mínimo de 1 dia"),
   saleDate: z.string().refine(val => !isNaN(Date.parse(val)), "Data inválida"),
   notes: z.string().optional(),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().optional(),
+  newPassword: z.string().min(6, "A nova senha deve ter no mínimo 6 caracteres"),
+  confirmPassword: z.string().min(1, "Confirme a nova senha"),
+}).refine(data => data.newPassword === data.confirmPassword, {
+  message: "As senhas não coincidem",
+  path: ["confirmPassword"],
 });
 
 function VacationStatusBadge({ status }: { status: string }) {
@@ -183,6 +193,13 @@ export default function EmployeeDetail() {
     },
   });
 
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const passwordForm = useForm<z.infer<typeof changePasswordSchema>>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
+  });
+
   const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
   const createSaleMutation = useMutation({
@@ -228,6 +245,30 @@ export default function EmployeeDetail() {
     },
     onError: (err: Error) => {
       toast({ variant: "destructive", title: "Erro", description: err.message });
+    },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof changePasswordSchema>) => {
+      const body: Record<string, string> = { newPassword: values.newPassword };
+      if (values.currentPassword) body.currentPassword = values.currentPassword;
+      const res = await fetch(`${base}/api/employees/${employeeId}/password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao alterar senha");
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: "Senha alterada", description: "A senha foi alterada com sucesso." });
+      passwordForm.reset({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setIsChangingPassword(false);
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erro ao alterar senha", description: err.message });
     },
   });
 
@@ -816,6 +857,99 @@ export default function EmployeeDetail() {
               )}
             </CardContent>
           </Card>
+
+          {/* Change Password Card — own profile or coordinator */}
+          {(isOwnProfile || isManager) && (
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader
+                className="flex flex-row items-center justify-between pb-3 cursor-pointer"
+                onClick={() => {
+                  setIsChangingPassword(p => !p);
+                  if (isChangingPassword) passwordForm.reset({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-5 h-5 text-primary" />
+                  <div>
+                    <CardTitle>Alterar Senha</CardTitle>
+                    <CardDescription>
+                      {isManager && !isOwnProfile
+                        ? "Redefina a senha deste funcionário sem precisar da senha atual."
+                        : "Altere sua senha de acesso ao sistema."}
+                    </CardDescription>
+                  </div>
+                </div>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isChangingPassword ? "rotate-180" : ""}`} />
+              </CardHeader>
+              {isChangingPassword && (
+                <CardContent>
+                  <Form {...passwordForm}>
+                    <form
+                      onSubmit={passwordForm.handleSubmit((v) => changePasswordMutation.mutate(v))}
+                      className="space-y-4"
+                    >
+                      {(!isManager || isOwnProfile) && (
+                        <FormField
+                          control={passwordForm.control}
+                          name="currentPassword"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Senha atual</FormLabel>
+                              <FormControl>
+                                <Input type="password" placeholder="Digite sua senha atual" data-testid="input-current-password" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                      <FormField
+                        control={passwordForm.control}
+                        name="newPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nova senha</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="Mínimo 6 caracteres" data-testid="input-new-password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={passwordForm.control}
+                        name="confirmPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Confirmar nova senha</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="Repita a nova senha" data-testid="input-confirm-password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsChangingPassword(false);
+                            passwordForm.reset({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button type="submit" disabled={changePasswordMutation.isPending} data-testid="button-submit-password">
+                          {changePasswordMutation.isPending ? "Salvando..." : "Salvar nova senha"}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </CardContent>
+              )}
+            </Card>
+          )}
 
           {/* Vacation Sales History — coordinator only */}
           {isManager && (

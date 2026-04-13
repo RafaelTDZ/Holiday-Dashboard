@@ -262,6 +262,66 @@ router.delete("/employees/:id", async (req: Request, res: Response): Promise<voi
   res.sendStatus(204);
 });
 
+// ── Change Password ───────────────────────────────────────────────────
+
+router.put("/employees/:id/password", async (req: Request, res: Response): Promise<void> => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(rawId, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid employee ID" });
+    return;
+  }
+
+  const [emp] = await db.select().from(employeesTable).where(eq(employeesTable.id, id));
+  if (!emp) {
+    res.status(404).json({ error: "Employee not found" });
+    return;
+  }
+
+  const isOwnProfile = emp.userId === req.user!.id;
+  const isManager = req.user!.isManager;
+
+  if (!isOwnProfile && !isManager) {
+    res.status(403).json({ error: "Sem permissão para alterar a senha deste funcionário." });
+    return;
+  }
+
+  const { currentPassword, newPassword } = req.body ?? {};
+
+  if (typeof newPassword !== "string" || newPassword.length < 6) {
+    res.status(400).json({ error: "A nova senha deve ter no mínimo 6 caracteres." });
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, emp.userId!));
+  if (!user) {
+    res.status(404).json({ error: "Usuário não encontrado." });
+    return;
+  }
+
+  if (isOwnProfile && !isManager) {
+    if (typeof currentPassword !== "string" || currentPassword.length === 0) {
+      res.status(400).json({ error: "A senha atual é obrigatória." });
+      return;
+    }
+    const match = await bcrypt.compare(currentPassword, user.passwordHash ?? "");
+    if (!match) {
+      res.status(400).json({ error: "Senha atual incorreta." });
+      return;
+    }
+  }
+
+  const newHash = await bcrypt.hash(newPassword, 12);
+  await db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, user.id));
+
+  res.json({ message: "Senha alterada com sucesso." });
+});
+
 // ── Vacation Sales ────────────────────────────────────────────────────
 
 router.get("/employees/:id/vacation-sales", async (req: Request, res: Response): Promise<void> => {
