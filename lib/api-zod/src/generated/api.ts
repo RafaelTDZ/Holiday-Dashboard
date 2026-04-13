@@ -280,6 +280,9 @@ export const GetDashboardSummaryResponse = zod.object({
     .describe(
       "Employees with overdue vacation balance (>= 30 days balance and no upcoming vacation)",
     ),
+  pendingRequests: zod
+    .number()
+    .describe("Number of vacation requests awaiting approval"),
   departmentBreakdown: zod.array(
     zod.object({
       department: zod.string(),

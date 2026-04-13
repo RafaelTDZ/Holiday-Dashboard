@@ -14,5 +14,7 @@ export interface DashboardSummary {
   upcomingVacations: UpcomingVacation[];
   /** Employees with overdue vacation balance (>= 30 days balance and no upcoming vacation) */
   overdueVacations: number;
+  /** Number of vacation requests awaiting approval */
+  pendingRequests: number;
   departmentBreakdown: DashboardSummaryDepartmentBreakdownItem[];
 }
