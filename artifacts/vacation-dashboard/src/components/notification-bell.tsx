@@ -9,11 +9,7 @@ import {
 import { Link } from "wouter";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-function getApiBase() {
-  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-  return `${base}/api`;
-}
+import { getApiBase } from "@/utils/api";
 
 interface Notif {
   id: number;

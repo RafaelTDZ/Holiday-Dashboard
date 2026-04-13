@@ -6,11 +6,7 @@ import { Briefcase, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-
-function getApiBase() {
-  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-  return `${base}/api`;
-}
+import { getApiBase, getAppBase } from "@/utils/api";
 
 export default function Login() {
   const { login } = useAuth();
@@ -123,7 +119,7 @@ export default function Login() {
 
               <div className="text-center">
                 <a
-                  href={`${import.meta.env.BASE_URL?.replace(/\/$/, "")}/forgot-password`}
+                  href={`${getAppBase()}/forgot-password`}
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   data-testid="link-forgot-password"
                 >

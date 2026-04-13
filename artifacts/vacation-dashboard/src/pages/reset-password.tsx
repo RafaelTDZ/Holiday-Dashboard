@@ -4,14 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Briefcase, Eye, EyeOff, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
-
-function getApiBase() {
-  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-  return `${base}/api`;
-}
+import { getApiBase, getAppBase } from "@/utils/api";
 
 export default function ResetPassword() {
-  const loginUrl = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
+  const loginUrl = getAppBase();
   const token = new URLSearchParams(window.location.search).get("token") ?? "";
 
   const [password, setPassword] = useState("");
