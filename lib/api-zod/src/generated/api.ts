@@ -40,28 +40,7 @@ export const GetCurrentAuthUserResponse = zod.object({
 });
 
 /**
- * @summary Start the browser OIDC login flow
- */
-export const BeginBrowserLoginQueryParams = zod.object({
-  returnTo: zod.coerce
-    .string()
-    .optional()
-    .describe(
-      "Relative path to redirect to after login (must start with `\/`). Defaults to `\/`.",
-    ),
-});
-
-/**
- * @summary Complete the browser OIDC login flow
- */
-export const HandleBrowserLoginCallbackQueryParams = zod.object({
-  code: zod.coerce.string().optional(),
-  state: zod.coerce.string().optional(),
-  iss: zod.coerce.string().url().optional(),
-});
-
-/**
- * @summary Clear the session and begin OIDC logout
+ * @summary Clear the session and redirect to the app
  */
 export const LogoutBrowserSessionHeader = zod.object({
   Authorization: zod
@@ -71,33 +50,57 @@ export const LogoutBrowserSessionHeader = zod.object({
 });
 
 /**
- * @summary Exchange a mobile OIDC code for a session token
+ * @summary Create an account with e-mail and password
  */
+export const registerLocalUserBodyPasswordMin = 6;
 
-export const ExchangeMobileAuthorizationCodeBody = zod.object({
-  code: zod.string().min(1),
-  code_verifier: zod.string().min(1),
-  redirect_uri: zod.string().url().min(1),
-  state: zod.string().min(1),
-  nonce: zod.string().min(1).optional(),
+export const RegisterLocalUserBody = zod.object({
+  email: zod.string().email(),
+  password: zod.string().min(registerLocalUserBodyPasswordMin),
 });
 
-export const ExchangeMobileAuthorizationCodeResponse = zod.object({
-  token: zod.string(),
+export const RegisterLocalUserResponse = zod.object({
+  ok: zod.boolean(),
 });
 
 /**
- * @summary Delete a mobile session token
+ * @summary Sign in with e-mail and password
  */
-export const LogoutMobileSessionHeader = zod.object({
-  Authorization: zod
-    .string()
-    .optional()
-    .describe("Opaque session token — `Bearer <sid>`."),
+export const loginLocalUserBodyPasswordMin = 6;
+
+export const LoginLocalUserBody = zod.object({
+  email: zod.string().email(),
+  password: zod.string().min(loginLocalUserBodyPasswordMin),
 });
 
-export const LogoutMobileSessionResponse = zod.object({
-  success: zod.boolean(),
+export const LoginLocalUserResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Send a password reset link
+ */
+export const RequestPasswordResetBody = zod.object({
+  email: zod.string().email(),
+});
+
+export const RequestPasswordResetResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Set a new password using a reset token
+ */
+
+export const resetPasswordBodyPasswordMin = 6;
+
+export const ResetPasswordBody = zod.object({
+  token: zod.string().min(1),
+  password: zod.string().min(resetPasswordBodyPasswordMin),
+});
+
+export const ResetPasswordResponse = zod.object({
+  ok: zod.boolean(),
 });
 
 /**
@@ -130,13 +133,15 @@ export const ListEmployeesResponse = zod.object({
  * @summary Create a new employee
  */
 
+export const createEmployeeBodyPasswordMin = 6;
+
 export const CreateEmployeeBody = zod.object({
   name: zod.string().min(1),
   role: zod.string().min(1),
   department: zod.string().min(1),
   hireDate: zod.coerce.date(),
-  email: zod.string().email(),
-  password: zod.string().min(6),
+  email: zod.string().email().min(1),
+  password: zod.string().min(createEmployeeBodyPasswordMin),
 });
 
 /**
@@ -167,6 +172,16 @@ export const GetEmployeeResponse = zod.object({
       notes: zod.string().nullable(),
       status: zod.enum(["pending", "approved", "rejected"]),
       createdAt: zod.coerce.date(),
+    }),
+  ),
+  vacationSales: zod.array(
+    zod.object({
+      id: zod.number(),
+      employeeId: zod.number(),
+      daysSold: zod.number(),
+      saleDate: zod.coerce.date(),
+      notes: zod.string().nullish(),
+      createdAt: zod.coerce.date().optional(),
     }),
   ),
 });
@@ -206,6 +221,16 @@ export const UpdateEmployeeResponse = zod.object({
       notes: zod.string().nullable(),
       status: zod.enum(["pending", "approved", "rejected"]),
       createdAt: zod.coerce.date(),
+    }),
+  ),
+  vacationSales: zod.array(
+    zod.object({
+      id: zod.number(),
+      employeeId: zod.number(),
+      daysSold: zod.number(),
+      saleDate: zod.coerce.date(),
+      notes: zod.string().nullish(),
+      createdAt: zod.coerce.date().optional(),
     }),
   ),
 });

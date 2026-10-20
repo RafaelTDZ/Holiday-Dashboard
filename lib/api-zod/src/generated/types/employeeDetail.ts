@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { VacationItem } from "./vacationItem";
+import type { VacationSale } from "./vacationSale";
 
 export interface EmployeeDetail {
   id: number;
@@ -20,4 +21,5 @@ export interface EmployeeDetail {
   /** @nullable */
   nextVacationStart: Date | null;
   vacations: VacationItem[];
+  vacationSales: VacationSale[];
 }

@@ -26,27 +26,27 @@ export interface AuthUserEnvelope {
   user: AuthUser | null;
 }
 
-export interface MobileTokenExchangeRequest {
-  /** @minLength 1 */
-  code: string;
-  /** @minLength 1 */
-  code_verifier: string;
-  /** @minLength 1 */
-  redirect_uri: string;
-  /** @minLength 1 */
-  state: string;
-  /** @minLength 1 */
-  nonce?: string;
+export interface LocalCredentialsBody {
+  email: string;
+  /** @minLength 6 */
+  password: string;
 }
 
-export interface MobileTokenExchangeSuccess {
+export interface EmailBody {
+  email: string;
+}
+
+export interface ResetPasswordBody {
+  /** @minLength 1 */
   token: string;
+  /** @minLength 6 */
+  password: string;
 }
 
-export const LogoutSuccessValue = {
-  success: true,
+export const OkEnvelopeValue = {
+  ok: true,
 } as const;
-export type LogoutSuccess = typeof LogoutSuccessValue;
+export type OkEnvelope = typeof OkEnvelopeValue;
 
 export interface ErrorEnvelope {
   error: string;
@@ -66,6 +66,16 @@ export interface EmployeeWithBalance {
   isOnVacation: boolean;
   /** @nullable */
   nextVacationStart: string | null;
+}
+
+export interface VacationSale {
+  id: number;
+  employeeId: number;
+  daysSold: number;
+  saleDate: string;
+  /** @nullable */
+  notes?: string | null;
+  createdAt?: string;
 }
 
 export type VacationItemStatus =
@@ -102,6 +112,7 @@ export interface EmployeeDetail {
   /** @nullable */
   nextVacationStart: string | null;
   vacations: VacationItem[];
+  vacationSales: VacationSale[];
 }
 
 export interface ListEmployeesResponse {
@@ -199,16 +210,3 @@ export interface DashboardSummary {
  * Opaque session token — `Bearer <sid>`.
  */
 export type AuthorizationSessionHeaderParameter = string;
-
-export type BeginBrowserLoginParams = {
-  /**
-   * Relative path to redirect to after login (must start with `/`). Defaults to `/`.
-   */
-  returnTo?: string;
-};
-
-export type HandleBrowserLoginCallbackParams = {
-  code?: string;
-  state?: string;
-  iss?: string;
-};

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useAuth } from "@workspace/replit-auth-web";
+import { useAuth } from "@workspace/auth-web";
 import { 
   useListEmployees, 
   useCreateEmployee,
@@ -101,7 +101,7 @@ export default function EmployeesList() {
     defaultValues: {
       name: "",
       role: "",
-      department: "",
+      department: undefined,
       hireDate: new Date().toISOString().split('T')[0],
       email: "",
       password: "",

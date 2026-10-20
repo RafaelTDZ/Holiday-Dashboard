@@ -1,11 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
-import { db, employeesTable, vacationsTable } from "@workspace/db";
-import { CreateEmployeeBody } from "@workspace/api-zod";
+import { EmployeeModel, VacationModel } from "@workspace/db";
+import { RegisterAsEmployeeBody } from "@workspace/api-zod";
 import { calculateVacationStats } from "../lib/vacation-utils";
 
 const toDateStr = (d: Date | string): string => {
-  if (typeof d === "string") return d;
+  if (typeof d === "string") {
+    return d.split("T")[0];
+  }
   return d.toISOString().split("T")[0];
 };
 
@@ -18,21 +19,14 @@ router.get("/me/employee", async (req: Request, res: Response): Promise<void> =>
   }
 
   const userId = req.user!.id;
-  const [emp] = await db
-    .select()
-    .from(employeesTable)
-    .where(eq(employeesTable.userId, userId))
-    .limit(1);
+  const emp = await EmployeeModel.findOne({ userId }).lean();
 
   if (!emp) {
     res.json({ employee: null });
     return;
   }
 
-  const vacations = await db
-    .select()
-    .from(vacationsTable)
-    .where(eq(vacationsTable.employeeId, emp.id));
+  const vacations = await VacationModel.find({ employeeId: emp.id }).lean();
 
   const stats = calculateVacationStats(emp.hireDate, vacations);
   res.json({
@@ -56,18 +50,14 @@ router.post("/me/employee", async (req: Request, res: Response): Promise<void> =
 
   const userId = req.user!.id;
 
-  const existing = await db
-    .select({ id: employeesTable.id })
-    .from(employeesTable)
-    .where(eq(employeesTable.userId, userId))
-    .limit(1);
+  const existing = await EmployeeModel.findOne({ userId }).lean();
 
-  if (existing.length > 0) {
+  if (existing) {
     res.status(400).json({ error: "Usuário já está cadastrado como funcionário." });
     return;
   }
 
-  const parsed = CreateEmployeeBody.safeParse(req.body);
+  const parsed = RegisterAsEmployeeBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Dados inválidos.", details: parsed.error.issues });
     return;
@@ -75,16 +65,13 @@ router.post("/me/employee", async (req: Request, res: Response): Promise<void> =
 
   const { name, role, department, hireDate } = parsed.data;
 
-  const [emp] = await db
-    .insert(employeesTable)
-    .values({
-      name,
-      role,
-      department,
-      hireDate: toDateStr(hireDate as unknown as Date | string),
-      userId,
-    })
-    .returning();
+  const emp = await EmployeeModel.create({
+    name,
+    role,
+    department,
+    hireDate: toDateStr(hireDate as unknown as Date | string),
+    userId,
+  });
 
   const stats = calculateVacationStats(emp.hireDate, []);
   res.status(201).json({

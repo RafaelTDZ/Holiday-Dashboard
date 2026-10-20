@@ -1,5 +1,5 @@
 import { useGetDashboardSummary } from "@workspace/api-client-react";
-import { useAuth } from "@workspace/replit-auth-web";
+import { useAuth } from "@workspace/auth-web";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Sun, AlertTriangle, CalendarDays, ArrowRight, Clock } from "lucide-react";
 import { format, parseISO } from "date-fns";

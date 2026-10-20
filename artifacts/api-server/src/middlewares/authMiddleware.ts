@@ -1,16 +1,8 @@
-import * as oidc from "openid-client";
 import { type Request, type Response, type NextFunction } from "express";
-import { eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { mongoose } from "@workspace/db";
+import { UserModel } from "@workspace/db";
 import type { AuthUser } from "../types/auth";
-import {
-  clearSession,
-  getOidcConfig,
-  getSessionId,
-  getSession,
-  updateSession,
-  type SessionData,
-} from "../lib/auth";
+import { clearSession, getSessionId, getSession } from "../lib/auth";
 
 declare global {
   namespace Express {
@@ -25,33 +17,6 @@ declare global {
     export interface AuthedRequest {
       user: User;
     }
-  }
-}
-
-async function refreshIfExpired(
-  sid: string,
-  session: SessionData,
-): Promise<SessionData | null> {
-  const now = Math.floor(Date.now() / 1000);
-  if (!session.expires_at || now <= session.expires_at) return session;
-
-  if (!session.refresh_token) return null;
-
-  try {
-    const config = await getOidcConfig();
-    const tokens = await oidc.refreshTokenGrant(
-      config,
-      session.refresh_token,
-    );
-    session.access_token = tokens.access_token;
-    session.refresh_token = tokens.refresh_token ?? session.refresh_token;
-    session.expires_at = tokens.expiresIn()
-      ? now + tokens.expiresIn()!
-      : session.expires_at;
-    await updateSession(sid, session);
-    return session;
-  } catch {
-    return null;
   }
 }
 
@@ -77,18 +42,15 @@ export async function authMiddleware(
     return;
   }
 
-  const refreshed = await refreshIfExpired(sid, session);
-  if (!refreshed) {
-    await clearSession(res, sid);
-    next();
-    return;
-  }
+  // The manager flag is always read fresh from the database so a role change
+  // takes effect on the next request (no stale session data).
+  const dbUser = mongoose.isValidObjectId(session.user.id)
+    ? await UserModel.findById(session.user.id).select("isManager").lean()
+    : null;
 
-  const [dbUser] = await db
-    .select({ isManager: usersTable.isManager })
-    .from(usersTable)
-    .where(eq(usersTable.id, refreshed.user.id));
+  req.user = dbUser
+    ? { ...session.user, isManager: dbUser.isManager }
+    : session.user;
 
-  req.user = dbUser ? { ...refreshed.user, isManager: dbUser.isManager } : refreshed.user;
   next();
 }

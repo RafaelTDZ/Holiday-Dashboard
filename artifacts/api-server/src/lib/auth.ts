@@ -1,11 +1,8 @@
-import * as client from "openid-client";
 import crypto from "crypto";
 import { type Request, type Response } from "express";
-import { db, sessionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { SessionModel } from "@workspace/db";
 import type { AuthUser } from "../types/auth";
 
-export const ISSUER_URL = process.env.ISSUER_URL ?? "https://replit.com/oidc";
 export const SESSION_COOKIE = "sid";
 export const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
 
@@ -17,33 +14,18 @@ export interface SessionData {
   localAuth?: boolean;
 }
 
-let oidcConfig: client.Configuration | null = null;
-
-export async function getOidcConfig(): Promise<client.Configuration> {
-  if (!oidcConfig) {
-    oidcConfig = await client.discovery(
-      new URL(ISSUER_URL),
-      process.env.REPL_ID!,
-    );
-  }
-  return oidcConfig;
-}
-
 export async function createSession(data: SessionData): Promise<string> {
   const sid = crypto.randomBytes(32).toString("hex");
-  await db.insert(sessionsTable).values({
+  await SessionModel.create({
     sid,
-    sess: data as unknown as Record<string, unknown>,
+    sess: data,
     expire: new Date(Date.now() + SESSION_TTL),
   });
   return sid;
 }
 
 export async function getSession(sid: string): Promise<SessionData | null> {
-  const [row] = await db
-    .select()
-    .from(sessionsTable)
-    .where(eq(sessionsTable.sid, sid));
+  const row = await SessionModel.findOne({ sid }).lean();
 
   if (!row || row.expire < new Date()) {
     if (row) await deleteSession(sid);
@@ -57,17 +39,19 @@ export async function updateSession(
   sid: string,
   data: SessionData,
 ): Promise<void> {
-  await db
-    .update(sessionsTable)
-    .set({
-      sess: data as unknown as Record<string, unknown>,
-      expire: new Date(Date.now() + SESSION_TTL),
-    })
-    .where(eq(sessionsTable.sid, sid));
+  await SessionModel.updateOne(
+    { sid },
+    {
+      $set: {
+        sess: data,
+        expire: new Date(Date.now() + SESSION_TTL),
+      },
+    },
+  );
 }
 
 export async function deleteSession(sid: string): Promise<void> {
-  await db.delete(sessionsTable).where(eq(sessionsTable.sid, sid));
+  await SessionModel.deleteOne({ sid });
 }
 
 export async function clearSession(

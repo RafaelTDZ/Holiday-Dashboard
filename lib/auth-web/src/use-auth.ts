@@ -7,10 +7,13 @@ interface AuthState {
   user: AuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: () => void;
   logout: () => void;
 }
 
+/**
+ * Reads the current session from the API. The session lives in a httpOnly
+ * cookie, so there is nothing to store on the client.
+ */
 export function useAuth(): AuthState {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,12 +44,6 @@ export function useAuth(): AuthState {
     };
   }, []);
 
-  const login = useCallback(() => {
-    const env = ((import.meta as unknown) as Record<string, unknown>)["env"] as Record<string, string> | undefined;
-    const base = (env?.["BASE_URL"] ?? "").replace(/\/+$/, "") || "/";
-    window.location.href = `/api/login?returnTo=${encodeURIComponent(base)}`;
-  }, []);
-
   const logout = useCallback(() => {
     window.location.href = "/api/logout";
   }, []);
@@ -55,7 +52,6 @@ export function useAuth(): AuthState {
     user,
     isLoading,
     isAuthenticated: !!user,
-    login,
     logout,
   };
 }

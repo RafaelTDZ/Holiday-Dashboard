@@ -1,7 +1,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, sum } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { db, employeesTable, vacationsTable, usersTable, vacationSalesTable } from "@workspace/db";
+import {
+  EmployeeModel,
+  VacationModel,
+  VacationSaleModel,
+  UserModel,
+} from "@workspace/db";
 import {
   CreateEmployeeBody,
   UpdateEmployeeBody,
@@ -9,11 +13,55 @@ import {
 import { calculateVacationStats, vacationDurationDays } from "../lib/vacation-utils";
 
 const toDateStr = (d: Date | string): string => {
-  if (typeof d === "string") return d;
+  if (typeof d === "string") {
+    return d.split("T")[0];
+  }
   return d.toISOString().split("T")[0];
 };
 
 const router: IRouter = Router();
+
+function parseId(value: string | string[] | undefined): number | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const id = parseInt(raw ?? "", 10);
+  return Number.isNaN(id) ? null : id;
+}
+
+function serializeEmployee(employee: {
+  id: number;
+  name: string;
+  role: string;
+  department: string;
+  hireDate: string;
+  createdAt?: Date;
+}) {
+  return {
+    id: employee.id,
+    name: employee.name,
+    role: employee.role,
+    department: employee.department,
+    hireDate: toDateStr(employee.hireDate),
+    createdAt: employee.createdAt,
+  };
+}
+
+function serializeSale(sale: {
+  id: number;
+  employeeId: number;
+  daysSold: number;
+  saleDate: string;
+  notes?: string | null;
+  createdAt?: Date;
+}) {
+  return {
+    id: sale.id,
+    employeeId: sale.employeeId,
+    daysSold: sale.daysSold,
+    saleDate: toDateStr(sale.saleDate),
+    notes: sale.notes ?? null,
+    createdAt: sale.createdAt,
+  };
+}
 
 router.get("/employees", async (req: Request, res: Response): Promise<void> => {
   if (!req.isAuthenticated()) {
@@ -21,9 +69,9 @@ router.get("/employees", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const employees = await db.select().from(employeesTable).orderBy(employeesTable.name);
-  const allVacations = await db.select().from(vacationsTable);
-  const allSales = await db.select().from(vacationSalesTable);
+  const employees = await EmployeeModel.find().sort({ name: 1 }).lean();
+  const allVacations = await VacationModel.find().lean();
+  const allSales = await VacationSaleModel.find().lean();
 
   const vacationsByEmployee = new Map<number, typeof allVacations>();
   for (const v of allVacations) {
@@ -34,7 +82,10 @@ router.get("/employees", async (req: Request, res: Response): Promise<void> => {
 
   const soldByEmployee = new Map<number, number>();
   for (const s of allSales) {
-    soldByEmployee.set(s.employeeId, (soldByEmployee.get(s.employeeId) ?? 0) + s.daysSold);
+    soldByEmployee.set(
+      s.employeeId,
+      (soldByEmployee.get(s.employeeId) ?? 0) + s.daysSold,
+    );
   }
 
   const result = employees.map((emp) => {
@@ -42,12 +93,7 @@ router.get("/employees", async (req: Request, res: Response): Promise<void> => {
     const soldDays = soldByEmployee.get(emp.id) ?? 0;
     const stats = calculateVacationStats(emp.hireDate, vacations, soldDays);
     return {
-      id: emp.id,
-      name: emp.name,
-      role: emp.role,
-      department: emp.department,
-      hireDate: emp.hireDate,
-      createdAt: emp.createdAt,
+      ...serializeEmployee(emp),
       ...stats,
     };
   });
@@ -60,6 +106,10 @@ router.post("/employees", async (req: Request, res: Response): Promise<void> => 
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
+  if (!req.user!.isManager) {
+    res.status(403).json({ error: "Apenas coordenadores podem criar funcionários." });
+    return;
+  }
 
   const parsed = CreateEmployeeBody.safeParse(req.body);
   if (!parsed.success) {
@@ -70,32 +120,34 @@ router.post("/employees", async (req: Request, res: Response): Promise<void> => 
   const { email, password, ...employeeFields } = parsed.data;
 
   const normalizedEmail = email.toLowerCase().trim();
-  const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.email, normalizedEmail));
+  const existingUser = await UserModel.findOne({ email: normalizedEmail });
 
   let userId: string;
   if (existingUser) {
-    userId = existingUser.id;
+    userId = String(existingUser._id);
   } else {
     const passwordHash = await bcrypt.hash(password, 12);
-    const [newUser] = await db.insert(usersTable).values({
+    const newUser = await UserModel.create({
       email: normalizedEmail,
       passwordHash,
-    }).returning();
-    userId = newUser.id;
+    });
+    userId = String(newUser._id);
   }
 
-  const insertData = {
+  const employee = await EmployeeModel.create({
     ...employeeFields,
     hireDate: toDateStr(employeeFields.hireDate as Date | string),
     userId,
-  };
-  const [emp] = await db.insert(employeesTable).values(insertData).returning();
-  const stats = calculateVacationStats(emp.hireDate, [], 0);
+  });
+
+  const vacations = await VacationModel.find({ employeeId: employee.id }).lean();
+  const stats = calculateVacationStats(employee.hireDate, vacations, 0);
 
   res.status(201).json({
-    ...emp,
+    ...serializeEmployee(employee),
     ...stats,
     vacations: [],
+    vacationSales: [],
   });
 });
 
@@ -105,30 +157,25 @@ router.get("/employees/:id", async (req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const id = parseInt(rawId, 10);
-  if (isNaN(id)) {
+  const id = parseId(req.params.id);
+  if (id === null) {
     res.status(400).json({ error: "Invalid employee ID" });
     return;
   }
 
-  const [emp] = await db.select().from(employeesTable).where(eq(employeesTable.id, id));
+  const emp = await EmployeeModel.findOne({ id }).lean();
   if (!emp) {
     res.status(404).json({ error: "Employee not found" });
     return;
   }
 
-  const vacations = await db
-    .select()
-    .from(vacationsTable)
-    .where(eq(vacationsTable.employeeId, id))
-    .orderBy(vacationsTable.startDate);
+  const vacations = await VacationModel.find({ employeeId: id })
+    .sort({ startDate: 1 })
+    .lean();
 
-  const sales = await db
-    .select()
-    .from(vacationSalesTable)
-    .where(eq(vacationSalesTable.employeeId, id))
-    .orderBy(vacationSalesTable.saleDate);
+  const sales = await VacationSaleModel.find({ employeeId: id })
+    .sort({ saleDate: 1 })
+    .lean();
 
   const soldDays = sales.reduce((acc, s) => acc + s.daysSold, 0);
   const stats = calculateVacationStats(emp.hireDate, vacations, soldDays);
@@ -136,19 +183,19 @@ router.get("/employees/:id", async (req: Request, res: Response): Promise<void> 
   const vacationItems = vacations.map((v) => ({
     id: v.id,
     employeeId: v.employeeId,
-    startDate: v.startDate,
-    endDate: v.endDate,
-    durationDays: vacationDurationDays(v.startDate, v.endDate),
-    notes: v.notes,
+    startDate: toDateStr(v.startDate),
+    endDate: toDateStr(v.endDate),
+    durationDays: vacationDurationDays(toDateStr(v.startDate), toDateStr(v.endDate)),
+    notes: v.notes ?? null,
     status: v.status,
     createdAt: v.createdAt,
   }));
 
   res.json({
-    ...emp,
+    ...serializeEmployee(emp),
     ...stats,
     vacations: vacationItems,
-    vacationSales: sales,
+    vacationSales: sales.map(serializeSale),
   });
 });
 
@@ -162,9 +209,8 @@ router.put("/employees/:id", async (req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const id = parseInt(rawId, 10);
-  if (isNaN(id)) {
+  const id = parseId(req.params.id);
+  if (id === null) {
     res.status(400).json({ error: "Invalid employee ID" });
     return;
   }
@@ -188,27 +234,23 @@ router.put("/employees/:id", async (req: Request, res: Response): Promise<void> 
       hireDate: toDateStr(parsed.data.hireDate as Date | string),
     }),
   };
-  const [emp] = await db
-    .update(employeesTable)
-    .set(updateData)
-    .where(eq(employeesTable.id, id))
-    .returning();
+
+  const emp = await EmployeeModel.findOneAndUpdate(
+    { id },
+    { $set: updateData },
+    { new: true },
+  ).lean();
 
   if (!emp) {
     res.status(404).json({ error: "Employee not found" });
     return;
   }
 
-  const vacations = await db
-    .select()
-    .from(vacationsTable)
-    .where(eq(vacationsTable.employeeId, id))
-    .orderBy(vacationsTable.startDate);
+  const vacations = await VacationModel.find({ employeeId: id })
+    .sort({ startDate: 1 })
+    .lean();
 
-  const sales = await db
-    .select()
-    .from(vacationSalesTable)
-    .where(eq(vacationSalesTable.employeeId, id));
+  const sales = await VacationSaleModel.find({ employeeId: id }).lean();
 
   const soldDays = sales.reduce((acc, s) => acc + s.daysSold, 0);
   const stats = calculateVacationStats(emp.hireDate, vacations, soldDays);
@@ -216,19 +258,19 @@ router.put("/employees/:id", async (req: Request, res: Response): Promise<void> 
   const vacationItems = vacations.map((v) => ({
     id: v.id,
     employeeId: v.employeeId,
-    startDate: v.startDate,
-    endDate: v.endDate,
-    durationDays: vacationDurationDays(v.startDate, v.endDate),
-    notes: v.notes,
+    startDate: toDateStr(v.startDate),
+    endDate: toDateStr(v.endDate),
+    durationDays: vacationDurationDays(toDateStr(v.startDate), toDateStr(v.endDate)),
+    notes: v.notes ?? null,
     status: v.status,
     createdAt: v.createdAt,
   }));
 
   res.json({
-    ...emp,
+    ...serializeEmployee(emp),
     ...stats,
     vacations: vacationItems,
-    vacationSales: sales,
+    vacationSales: sales.map(serializeSale),
   });
 });
 
@@ -242,22 +284,26 @@ router.delete("/employees/:id", async (req: Request, res: Response): Promise<voi
     return;
   }
 
-  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const id = parseInt(rawId, 10);
-  if (isNaN(id)) {
+  const id = parseId(req.params.id);
+  if (id === null) {
     res.status(400).json({ error: "Invalid employee ID" });
     return;
   }
 
-  const [emp] = await db
-    .delete(employeesTable)
-    .where(eq(employeesTable.id, id))
-    .returning();
+  const emp = await EmployeeModel.findOneAndDelete({ id }).lean();
 
   if (!emp) {
     res.status(404).json({ error: "Employee not found" });
     return;
   }
+
+  // Cascades that the relational schema used to handle
+  const vacations = await VacationModel.find({ employeeId: id }).select("id").lean();
+  const vacationIds = vacations.map((v) => v.id);
+  await Promise.all([
+    VacationModel.deleteMany({ employeeId: id }),
+    VacationSaleModel.deleteMany({ employeeId: id }),
+  ]);
 
   res.sendStatus(204);
 });
@@ -270,14 +316,13 @@ router.put("/employees/:id/password", async (req: Request, res: Response): Promi
     return;
   }
 
-  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const id = parseInt(rawId, 10);
-  if (isNaN(id)) {
+  const id = parseId(req.params.id);
+  if (id === null) {
     res.status(400).json({ error: "Invalid employee ID" });
     return;
   }
 
-  const [emp] = await db.select().from(employeesTable).where(eq(employeesTable.id, id));
+  const emp = await EmployeeModel.findOne({ id }).lean();
   if (!emp) {
     res.status(404).json({ error: "Employee not found" });
     return;
@@ -298,7 +343,7 @@ router.put("/employees/:id/password", async (req: Request, res: Response): Promi
     return;
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, emp.userId!));
+  const user = await UserModel.findById(emp.userId).lean();
   if (!user) {
     res.status(404).json({ error: "Usuário não encontrado." });
     return;
@@ -317,7 +362,7 @@ router.put("/employees/:id/password", async (req: Request, res: Response): Promi
   }
 
   const newHash = await bcrypt.hash(newPassword, 12);
-  await db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, user.id));
+  await UserModel.updateOne({ _id: user._id }, { $set: { passwordHash: newHash } });
 
   res.json({ message: "Senha alterada com sucesso." });
 });
@@ -330,19 +375,17 @@ router.get("/employees/:id/vacation-sales", async (req: Request, res: Response):
     return;
   }
 
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) {
+  const id = parseId(req.params.id);
+  if (id === null) {
     res.status(400).json({ error: "Invalid employee ID" });
     return;
   }
 
-  const sales = await db
-    .select()
-    .from(vacationSalesTable)
-    .where(eq(vacationSalesTable.employeeId, id))
-    .orderBy(vacationSalesTable.saleDate);
+  const sales = await VacationSaleModel.find({ employeeId: id })
+    .sort({ saleDate: 1 })
+    .lean();
 
-  res.json({ vacationSales: sales });
+  res.json({ vacationSales: sales.map(serializeSale) });
 });
 
 router.post("/employees/:id/vacation-sales", async (req: Request, res: Response): Promise<void> => {
@@ -355,13 +398,13 @@ router.post("/employees/:id/vacation-sales", async (req: Request, res: Response)
     return;
   }
 
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) {
+  const id = parseId(req.params.id);
+  if (id === null) {
     res.status(400).json({ error: "Invalid employee ID" });
     return;
   }
 
-  const [emp] = await db.select().from(employeesTable).where(eq(employeesTable.id, id));
+  const emp = await EmployeeModel.findOne({ id }).lean();
   if (!emp) {
     res.status(404).json({ error: "Employee not found" });
     return;
@@ -378,8 +421,8 @@ router.post("/employees/:id/vacation-sales", async (req: Request, res: Response)
   }
 
   // Guard: can't sell more than current balance
-  const vacations = await db.select().from(vacationsTable).where(eq(vacationsTable.employeeId, id));
-  const existingSales = await db.select().from(vacationSalesTable).where(eq(vacationSalesTable.employeeId, id));
+  const vacations = await VacationModel.find({ employeeId: id }).lean();
+  const existingSales = await VacationSaleModel.find({ employeeId: id }).lean();
   const alreadySold = existingSales.reduce((acc, s) => acc + s.daysSold, 0);
   const stats = calculateVacationStats(emp.hireDate, vacations, alreadySold);
 
@@ -390,12 +433,14 @@ router.post("/employees/:id/vacation-sales", async (req: Request, res: Response)
     return;
   }
 
-  const [sale] = await db
-    .insert(vacationSalesTable)
-    .values({ employeeId: id, daysSold, saleDate, notes: notes ?? null })
-    .returning();
+  const sale = await VacationSaleModel.create({
+    employeeId: id,
+    daysSold,
+    saleDate: toDateStr(saleDate),
+    notes: notes ?? null,
+  });
 
-  res.status(201).json(sale);
+  res.status(201).json(serializeSale(sale));
 });
 
 router.delete("/employees/:id/vacation-sales/:saleId", async (req: Request, res: Response): Promise<void> => {
@@ -408,16 +453,13 @@ router.delete("/employees/:id/vacation-sales/:saleId", async (req: Request, res:
     return;
   }
 
-  const saleId = parseInt(req.params.saleId, 10);
-  if (isNaN(saleId)) {
+  const saleId = parseId(req.params.saleId);
+  if (saleId === null) {
     res.status(400).json({ error: "Invalid sale ID" });
     return;
   }
 
-  const [sale] = await db
-    .delete(vacationSalesTable)
-    .where(eq(vacationSalesTable.id, saleId))
-    .returning();
+  const sale = await VacationSaleModel.findOneAndDelete({ id: saleId }).lean();
 
   if (!sale) {
     res.status(404).json({ error: "Venda não encontrada" });

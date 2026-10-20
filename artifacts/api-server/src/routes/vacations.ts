@@ -1,10 +1,52 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
-import { db, vacationsTable, employeesTable, usersTable, notificationsTable, vacationSalesTable } from "@workspace/db";
+import {
+  EmployeeModel,
+  VacationModel,
+  UserModel,
+  NotificationModel,
+  VacationSaleModel,
+} from "@workspace/db";
 import { CreateVacationBody } from "@workspace/api-zod";
 import { vacationDurationDays, calculateVacationStats } from "../lib/vacation-utils";
 
 const router: IRouter = Router();
+
+function parseId(value: string | string[] | undefined): number | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const id = parseInt(raw ?? "", 10);
+  return Number.isNaN(id) ? null : id;
+}
+
+function toDateStr(d: Date | string): string {
+  if (typeof d === "string") {
+    return d.split("T")[0];
+  }
+  return d.toISOString().split("T")[0];
+}
+
+function serializeVacation(vacation: {
+  id: number;
+  employeeId: number;
+  startDate: string;
+  endDate: string;
+  notes?: string | null;
+  status: string;
+  createdAt?: Date;
+}) {
+  return {
+    id: vacation.id,
+    employeeId: vacation.employeeId,
+    startDate: toDateStr(vacation.startDate),
+    endDate: toDateStr(vacation.endDate),
+    durationDays: vacationDurationDays(
+      toDateStr(vacation.startDate),
+      toDateStr(vacation.endDate),
+    ),
+    notes: vacation.notes ?? null,
+    status: vacation.status,
+    createdAt: vacation.createdAt,
+  };
+}
 
 router.get(
   "/vacations",
@@ -16,27 +58,20 @@ router.get(
 
     const { status } = req.query;
 
-    const rows = await db
-      .select({
-        id: vacationsTable.id,
-        employeeId: vacationsTable.employeeId,
-        employeeName: employeesTable.name,
-        employeeDepartment: employeesTable.department,
-        startDate: vacationsTable.startDate,
-        endDate: vacationsTable.endDate,
-        notes: vacationsTable.notes,
-        status: vacationsTable.status,
-        createdAt: vacationsTable.createdAt,
-      })
-      .from(vacationsTable)
-      .leftJoin(employeesTable, eq(vacationsTable.employeeId, employeesTable.id))
-      .where(status ? eq(vacationsTable.status, status as string) : undefined)
-      .orderBy(vacationsTable.startDate);
+    const filter = status ? { status: status as string } : {};
+
+    const rows = await VacationModel.find(filter)
+      .sort({ startDate: 1 })
+      .lean();
+
+    const employees = await EmployeeModel.find().lean();
+    const employeesById = new Map(employees.map((e) => [e.id, e]));
 
     res.json({
       vacations: rows.map((v) => ({
-        ...v,
-        durationDays: vacationDurationDays(v.startDate, v.endDate),
+        ...serializeVacation(v),
+        employeeName: employeesById.get(v.employeeId)?.name ?? null,
+        employeeDepartment: employeesById.get(v.employeeId)?.department ?? null,
       })),
     });
   },
@@ -50,26 +85,32 @@ router.get(
       return;
     }
 
-    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const id = parseInt(rawId, 10);
-    if (isNaN(id)) {
+    const id = parseId(req.params.id);
+    if (id === null) {
       res.status(400).json({ error: "Invalid employee ID" });
       return;
     }
 
-    const vacations = await db
-      .select()
-      .from(vacationsTable)
-      .where(eq(vacationsTable.employeeId, id))
-      .orderBy(vacationsTable.startDate);
+    const emp = await EmployeeModel.findOne({ id }).lean();
+    if (!emp) {
+      res.status(404).json({ error: "Employee not found" });
+      return;
+    }
+
+    const vacations = await VacationModel.find({ employeeId: id })
+      .sort({ startDate: 1 })
+      .lean();
 
     const vacationItems = vacations.map((v) => ({
       id: v.id,
       employeeId: v.employeeId,
-      startDate: v.startDate,
-      endDate: v.endDate,
-      durationDays: vacationDurationDays(v.startDate, v.endDate),
-      notes: v.notes,
+      startDate: toDateStr(v.startDate),
+      endDate: toDateStr(v.endDate),
+      durationDays: vacationDurationDays(
+        toDateStr(v.startDate),
+        toDateStr(v.endDate),
+      ),
+      notes: v.notes ?? null,
       status: v.status,
       createdAt: v.createdAt,
     }));
@@ -86,17 +127,13 @@ router.post(
       return;
     }
 
-    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const employeeId = parseInt(rawId, 10);
-    if (isNaN(employeeId)) {
+    const id = parseId(req.params.id);
+    if (id === null) {
       res.status(400).json({ error: "Invalid employee ID" });
       return;
     }
 
-    const [emp] = await db
-      .select()
-      .from(employeesTable)
-      .where(eq(employeesTable.id, employeeId));
+    const emp = await EmployeeModel.findOne({ id }).lean();
     if (!emp) {
       res.status(404).json({ error: "Employee not found" });
       return;
@@ -107,16 +144,8 @@ router.post(
       return;
     }
 
-    const existingVacations = await db
-      .select()
-      .from(vacationsTable)
-      .where(eq(vacationsTable.employeeId, employeeId));
-
-    const existingSales = await db
-      .select()
-      .from(vacationSalesTable)
-      .where(eq(vacationSalesTable.employeeId, employeeId));
-
+    const existingVacations = await VacationModel.find({ employeeId: id }).lean();
+    const existingSales = await VacationSaleModel.find({ employeeId: id }).lean();
     const soldDays = existingSales.reduce((acc, s) => acc + s.daysSold, 0);
 
     const { vacationBalanceDays, firstEligibilityDate } = calculateVacationStats(
@@ -139,11 +168,6 @@ router.post(
 
     const { startDate: startDateRaw, endDate: endDateRaw, notes } = parsed.data;
 
-    const toDateStr = (d: Date | string): string => {
-      if (typeof d === "string") return d;
-      return d.toISOString().split("T")[0];
-    };
-
     const startDate = toDateStr(startDateRaw as Date | string);
     const endDate = toDateStr(endDateRaw as Date | string);
 
@@ -152,28 +176,34 @@ router.post(
       return;
     }
 
-    const [vacation] = await db
-      .insert(vacationsTable)
-      .values({ employeeId, startDate, endDate, notes: notes ?? null, status: "pending" })
-      .returning();
+    const vacation = await VacationModel.create({
+      employeeId: id,
+      startDate,
+      endDate,
+      notes: notes ?? null,
+      status: "pending",
+    });
 
     // Notify all coordinators
     try {
-      const coordinators = await db
-        .select({ id: usersTable.id })
-        .from(usersTable)
-        .where(eq(usersTable.isManager, true));
+      const coordinators = await UserModel.find({ isManager: true })
+        .select("_id")
+        .lean();
 
       if (coordinators.length > 0) {
         const fmt = (d: string) =>
-          new Date(d + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+          new Date(d + "T12:00:00").toLocaleDateString("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          });
         const startFormatted = fmt(startDate);
         const endFormatted = fmt(endDate);
         const message = `${emp.name} solicitou férias de ${startFormatted} a ${endFormatted}.`;
 
-        await db.insert(notificationsTable).values(
+        await NotificationModel.create(
           coordinators.map((c) => ({
-            userId: c.id,
+            userId: String(c._id),
             message,
             vacationId: vacation.id,
             employeeId: emp.id,
@@ -185,16 +215,7 @@ router.post(
       console.error("Failed to create coordinator notifications:", err);
     }
 
-    res.status(201).json({
-      id: vacation.id,
-      employeeId: vacation.employeeId,
-      startDate: vacation.startDate,
-      endDate: vacation.endDate,
-      durationDays: vacationDurationDays(vacation.startDate, vacation.endDate),
-      notes: vacation.notes,
-      status: vacation.status,
-      createdAt: vacation.createdAt,
-    });
+    res.status(201).json(serializeVacation(vacation));
   },
 );
 
@@ -210,9 +231,8 @@ router.put(
       return;
     }
 
-    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const id = parseInt(rawId, 10);
-    if (isNaN(id)) {
+    const id = parseId(req.params.id);
+    if (id === null) {
       res.status(400).json({ error: "Invalid vacation ID" });
       return;
     }
@@ -223,11 +243,11 @@ router.put(
       return;
     }
 
-    const [vacation] = await db
-      .update(vacationsTable)
-      .set({ status })
-      .where(eq(vacationsTable.id, id))
-      .returning();
+    const vacation = await VacationModel.findOneAndUpdate(
+      { id },
+      { $set: { status } },
+      { new: true },
+    ).lean();
 
     if (!vacation) {
       res.status(404).json({ error: "Vacation not found" });
@@ -236,10 +256,9 @@ router.put(
 
     // Notify the employee about the approval/rejection
     try {
-      const [emp] = await db
-        .select({ userId: employeesTable.userId, id: employeesTable.id })
-        .from(employeesTable)
-        .where(eq(employeesTable.id, vacation.employeeId));
+      const emp = await EmployeeModel.findOne({ id: vacation.employeeId })
+        .select("userId id")
+        .lean();
 
       if (emp?.userId) {
         const fmt = (d: string) =>
@@ -251,7 +270,7 @@ router.put(
         const statusLabel = status === "approved" ? "aprovadas" : "reprovadas";
         const message = `Suas férias de ${fmt(vacation.startDate)} a ${fmt(vacation.endDate)} foram ${statusLabel}.`;
 
-        await db.insert(notificationsTable).values({
+        await NotificationModel.create({
           userId: emp.userId,
           message,
           vacationId: vacation.id,
@@ -263,16 +282,7 @@ router.put(
       console.error("Failed to create employee notification:", err);
     }
 
-    res.json({
-      id: vacation.id,
-      employeeId: vacation.employeeId,
-      startDate: vacation.startDate,
-      endDate: vacation.endDate,
-      durationDays: vacationDurationDays(vacation.startDate, vacation.endDate),
-      notes: vacation.notes,
-      status: vacation.status,
-      createdAt: vacation.createdAt,
-    });
+    res.json(serializeVacation(vacation));
   },
 );
 
@@ -284,14 +294,13 @@ router.put(
       return;
     }
 
-    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const id = parseInt(rawId, 10);
-    if (isNaN(id)) {
+    const id = parseId(req.params.id);
+    if (id === null) {
       res.status(400).json({ error: "Invalid vacation ID" });
       return;
     }
 
-    const [vacation] = await db.select().from(vacationsTable).where(eq(vacationsTable.id, id));
+    const vacation = await VacationModel.findOne({ id }).lean();
     if (!vacation) {
       res.status(404).json({ error: "Vacation not found" });
       return;
@@ -302,7 +311,7 @@ router.put(
       return;
     }
 
-    const [emp] = await db.select().from(employeesTable).where(eq(employeesTable.id, vacation.employeeId));
+    const emp = await EmployeeModel.findOne({ id: vacation.employeeId }).lean();
     if (!emp || emp.userId !== req.user!.id) {
       res.status(403).json({ error: "Você só pode editar suas próprias férias." });
       return;
@@ -314,7 +323,6 @@ router.put(
       return;
     }
 
-    const toDateStr = (d: string) => d.split("T")[0];
     const startDate = toDateStr(startDateRaw);
     const endDate = toDateStr(endDateRaw);
 
@@ -323,22 +331,13 @@ router.put(
       return;
     }
 
-    const [updated] = await db
-      .update(vacationsTable)
-      .set({ startDate, endDate, notes: notes ?? null })
-      .where(eq(vacationsTable.id, id))
-      .returning();
+    const updated = await VacationModel.findOneAndUpdate(
+      { id },
+      { $set: { startDate, endDate, notes: notes ?? null } },
+      { new: true },
+    ).lean();
 
-    res.json({
-      id: updated.id,
-      employeeId: updated.employeeId,
-      startDate: updated.startDate,
-      endDate: updated.endDate,
-      durationDays: vacationDurationDays(updated.startDate, updated.endDate),
-      notes: updated.notes,
-      status: updated.status,
-      createdAt: updated.createdAt,
-    });
+    res.json(serializeVacation(updated!));
   },
 );
 
@@ -350,17 +349,13 @@ router.delete(
       return;
     }
 
-    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const id = parseInt(rawId, 10);
-    if (isNaN(id)) {
+    const id = parseId(req.params.id);
+    if (id === null) {
       res.status(400).json({ error: "Invalid vacation ID" });
       return;
     }
 
-    const [vacation] = await db
-      .delete(vacationsTable)
-      .where(eq(vacationsTable.id, id))
-      .returning();
+    const vacation = await VacationModel.findOneAndDelete({ id }).lean();
 
     if (!vacation) {
       res.status(404).json({ error: "Vacation not found" });

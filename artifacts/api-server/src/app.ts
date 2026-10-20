@@ -2,9 +2,11 @@ import express, { type Express } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
+import { connectDb } from "@workspace/db";
 import { authMiddleware } from "./middlewares/authMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { ensureBootstrapAdmin } from "./lib/bootstrap";
 
 const app: Express = express();
 
@@ -31,6 +33,20 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// The connection is established once per runtime (it is cached) and awaited
+// before any route runs.
+app.use(async (_req, res, next) => {
+  try {
+    await connectDb();
+    await ensureBootstrapAdmin();
+    next();
+  } catch (err) {
+    logger.error({ err }, "Failed to connect to MongoDB");
+    res.status(503).json({ error: "Banco de dados indisponível." });
+  }
+});
+
 app.use(authMiddleware);
 
 app.use("/api", router);

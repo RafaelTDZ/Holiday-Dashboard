@@ -1,8 +1,13 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, and, desc } from "drizzle-orm";
-import { db, notificationsTable } from "@workspace/db";
+import { NotificationModel } from "@workspace/db";
 
 const router: IRouter = Router();
+
+function parseId(value: string | string[] | undefined): number | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const id = parseInt(raw ?? "", 10);
+  return Number.isNaN(id) ? null : id;
+}
 
 router.get(
   "/notifications",
@@ -12,14 +17,22 @@ router.get(
       return;
     }
 
-    const rows = await db
-      .select()
-      .from(notificationsTable)
-      .where(eq(notificationsTable.userId, req.user!.id))
-      .orderBy(desc(notificationsTable.createdAt))
-      .limit(30);
+    const rows = await NotificationModel.find({ userId: req.user!.id })
+      .sort({ createdAt: -1 })
+      .limit(30)
+      .lean();
 
-    res.json({ notifications: rows });
+    res.json({
+      notifications: rows.map((n) => ({
+        id: n.id,
+        userId: n.userId,
+        message: n.message,
+        read: n.read,
+        vacationId: n.vacationId,
+        employeeId: n.employeeId,
+        createdAt: n.createdAt,
+      })),
+    });
   },
 );
 
@@ -31,15 +44,10 @@ router.put(
       return;
     }
 
-    await db
-      .update(notificationsTable)
-      .set({ read: true })
-      .where(
-        and(
-          eq(notificationsTable.userId, req.user!.id),
-          eq(notificationsTable.read, false),
-        ),
-      );
+    await NotificationModel.updateMany(
+      { userId: req.user!.id, read: false },
+      { $set: { read: true } },
+    );
 
     res.json({ ok: true });
   },
@@ -53,22 +61,17 @@ router.put(
       return;
     }
 
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) {
+    const id = parseId(req.params.id);
+    if (id === null) {
       res.status(400).json({ error: "Invalid notification ID" });
       return;
     }
 
-    const [notif] = await db
-      .update(notificationsTable)
-      .set({ read: true })
-      .where(
-        and(
-          eq(notificationsTable.id, id),
-          eq(notificationsTable.userId, req.user!.id),
-        ),
-      )
-      .returning();
+    const notif = await NotificationModel.findOneAndUpdate(
+      { id, userId: req.user!.id },
+      { $set: { read: true } },
+      { new: true },
+    ).lean();
 
     if (!notif) {
       res.status(404).json({ error: "Notification not found" });

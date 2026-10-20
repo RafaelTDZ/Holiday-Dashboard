@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useAuth } from "@workspace/replit-auth-web";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Briefcase, Eye, EyeOff, Loader2 } from "lucide-react";
@@ -9,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 import { getApiBase, getAppBase } from "@/utils/api";
 
 export default function Login() {
-  const { login } = useAuth();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -127,26 +125,6 @@ export default function Login() {
                 </a>
               </div>
             </form>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border/60" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">ou</span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="w-full font-semibold"
-              onClick={login}
-              data-testid="button-login-replit"
-            >
-              Entrar com Replit
-            </Button>
           </CardContent>
         </Card>
       </div>

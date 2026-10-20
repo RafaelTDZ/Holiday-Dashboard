@@ -1,6 +1,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, employeesTable, vacationsTable, vacationSalesTable } from "@workspace/db";
+import {
+  EmployeeModel,
+  VacationModel,
+  VacationSaleModel,
+} from "@workspace/db";
 import { calculateVacationStats, vacationDurationDays } from "../lib/vacation-utils";
+import { todayDateOnly } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -12,16 +17,11 @@ router.get(
       return;
     }
 
-    const employees = await db.select().from(employeesTable);
-    const allVacations = await db.select().from(vacationsTable);
-    const allSales = await db.select().from(vacationSalesTable);
+    const employees = await EmployeeModel.find().lean();
+    const allVacations = await VacationModel.find().lean();
+    const allSales = await VacationSaleModel.find().lean();
 
-    const today = new Date();
-    const todayStr = new Date(
-      Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
-    )
-      .toISOString()
-      .split("T")[0];
+    const todayStr = todayDateOnly();
 
     const vacationsByEmployee = new Map<number, typeof allVacations>();
     for (const v of allVacations) {
@@ -32,7 +32,10 @@ router.get(
 
     const soldByEmployee = new Map<number, number>();
     for (const s of allSales) {
-      soldByEmployee.set(s.employeeId, (soldByEmployee.get(s.employeeId) ?? 0) + s.daysSold);
+      soldByEmployee.set(
+        s.employeeId,
+        (soldByEmployee.get(s.employeeId) ?? 0) + s.daysSold,
+      );
     }
 
     let onVacationToday = 0;
@@ -52,7 +55,10 @@ router.get(
       const soldDays = soldByEmployee.get(emp.id) ?? 0;
       const stats = calculateVacationStats(emp.hireDate, vacations, soldDays);
 
-      const dept = departmentMap.get(emp.department) ?? { count: 0, onVacation: 0 };
+      const dept = departmentMap.get(emp.department) ?? {
+        count: 0,
+        onVacation: 0,
+      };
       dept.count++;
 
       if (stats.isOnVacation) {

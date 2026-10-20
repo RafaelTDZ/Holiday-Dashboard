@@ -50,108 +50,125 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthUserEnvelope'
-  /login:
-    get:
-      tags: [Auth]
-      operationId: beginBrowserLogin
-      summary: Start the browser OIDC login flow
-      parameters:
-        - name: returnTo
-          in: query
-          required: false
-          description: Relative path to redirect to after login (must start with `/`). Defaults to `/`.
-          schema:
-            type: string
-      responses:
-        '302':
-          description: Redirect to the OIDC authorization endpoint.
-  /callback:
-    get:
-      tags: [Auth]
-      operationId: handleBrowserLoginCallback
-      summary: Complete the browser OIDC login flow
-      parameters:
-        - name: code
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: state
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: iss
-          in: query
-          required: false
-          schema:
-            type: string
-            format: uri
-      responses:
-        '302':
-          description: Redirect to the `returnTo` path on success (defaults to `/`) or `/api/login` on failure.
   /logout:
     get:
       tags: [Auth]
       operationId: logoutBrowserSession
-      summary: Clear the session and begin OIDC logout
+      summary: Clear the session and redirect to the app
       parameters:
         - $ref: '#/components/parameters/AuthorizationSessionHeader'
         - $ref: '#/components/parameters/SessionCookie'
       responses:
         '302':
-          description: Redirect to the OIDC provider logout URL.
-  /mobile-auth/token-exchange:
+          description: Redirect to the application root.
+  /auth/register-local:
     post:
       tags: [Auth]
-      operationId: exchangeMobileAuthorizationCode
-      summary: Exchange a mobile OIDC code for a session token
+      operationId: registerLocalUser
+      summary: Create an account with e-mail and password
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/MobileTokenExchangeRequest'
+              $ref: "#/components/schemas/LocalCredentialsBody"
       responses:
         '200':
-          description: Session created successfully.
+          description: Account created and the session started.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MobileTokenExchangeSuccess'
+                $ref: "#/components/schemas/OkEnvelope"
         '400':
-          description: Missing or invalid required fields.
+          description: Invalid e-mail or password.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '401':
-          description: Token did not contain usable claims.
+                $ref: "#/components/schemas/ErrorEnvelope"
+        '409':
+          description: The e-mail is already registered.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-        '500':
-          description: Token exchange failed.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-  /mobile-auth/logout:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/login-local:
     post:
       tags: [Auth]
-      operationId: logoutMobileSession
-      summary: Delete a mobile session token
-      parameters:
-        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      operationId: loginLocalUser
+      summary: Sign in with e-mail and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocalCredentialsBody"
       responses:
         '200':
-          description: Logout processed.
+          description: Authenticated and the session started.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LogoutSuccess'
-
+                $ref: "#/components/schemas/OkEnvelope"
+        '400':
+          description: Missing credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        '401':
+          description: Invalid e-mail or password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      operationId: requestPasswordReset
+      summary: Send a password reset link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailBody"
+      responses:
+        '200':
+          description: The request was accepted (always, to avoid leaking registered e-mails).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkEnvelope"
+        '400':
+          description: Missing e-mail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      operationId: resetPassword
+      summary: Set a new password using a reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordBody"
+      responses:
+        '200':
+          description: The password was changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkEnvelope"
+        '400':
+          description: Invalid or expired token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /employees:
     get:
       operationId: listEmployees
@@ -540,37 +557,38 @@ components:
           oneOf:
             - $ref: '#/components/schemas/AuthUser'
             - type: 'null'
-    MobileTokenExchangeRequest:
+    LocalCredentialsBody:
       type: object
-      required: [code, code_verifier, redirect_uri, state]
+      required: [email, password]
       properties:
-        code:
+        email:
           type: string
-          minLength: 1
-        code_verifier:
+          format: email
+        password:
           type: string
-          minLength: 1
-        redirect_uri:
-          type: string
-          minLength: 1
-          format: uri
-        state:
-          type: string
-          minLength: 1
-        nonce:
-          type: string
-          minLength: 1
-    MobileTokenExchangeSuccess:
+          minLength: 6
+    EmailBody:
       type: object
-      required: [token]
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    ResetPasswordBody:
+      type: object
+      required: [token, password]
       properties:
         token:
           type: string
-    LogoutSuccess:
+          minLength: 1
+        password:
+          type: string
+          minLength: 6
+    OkEnvelope:
       type: object
-      required: [success]
+      required: [ok]
       properties:
-        success:
+        ok:
           type: boolean
           const: true
     ErrorEnvelope:
@@ -610,9 +628,28 @@ components:
           type: [string, 'null']
           format: date
 
+    VacationSale:
+      type: object
+      required: [id, employeeId, daysSold, saleDate]
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        daysSold:
+          type: integer
+        saleDate:
+          type: string
+          format: date
+        notes:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+
     EmployeeDetail:
       type: object
-      required: [id, name, role, department, hireDate, createdAt, vacationBalanceDays, daysUntilNextVacation, isOnVacation, nextVacationStart, vacations]
+      required: [id, name, role, department, hireDate, createdAt, vacationBalanceDays, daysUntilNextVacation, isOnVacation, nextVacationStart, vacations, vacationSales]
       properties:
         id:
           type: integer
@@ -641,6 +678,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/VacationItem"
+        vacationSales:
+          type: array
+          items:
+            $ref: "#/components/schemas/VacationSale"
 
     ListEmployeesResponse:
       type: object
@@ -679,7 +720,7 @@ components:
 
     CreateEmployeeBody:
       type: object
-      required: [name, role, department, hireDate]
+      required: [name, role, department, hireDate, email, password]
       properties:
         name:
           type: string
@@ -693,6 +734,13 @@ components:
         hireDate:
           type: string
           format: date
+        email:
+          type: string
+          minLength: 1
+          format: email
+        password:
+          type: string
+          minLength: 6
 
     UpdateEmployeeBody:
       type: object

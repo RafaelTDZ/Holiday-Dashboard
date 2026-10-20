@@ -1,0 +1,103 @@
+# Dashboard de Férias
+
+Painel de gestão de férias para RH: acompanhamento de saldos, solicitações,
+aprovações e avisos automáticos.
+
+- **Frontend**: React 19 + Vite 7 (Tailwind CSS 4, shadcn/ui, TanStack Query)
+- **API**: Express 5 (TypeScript), empacotada como Serverless Function da Vercel
+- **Banco de dados**: MongoDB (Mongoose 8) — Atlas em produção
+- **Monorepo**: pnpm workspaces
+- **Deploy**: Vercel (frontend estático + `/api` na mesma função, mesmo domínio)
+
+## Estrutura
+
+```text
+.
+├── api/                          # Serverless Function da Vercel (/api/*)
+├── artifacts/
+│   ├── api-server/               # API Express (rotas, middleware, libs)
+│   ├── mockup-sandbox/           # Playground de mockups
+│   └── vacation-dashboard/       # Frontend React + Vite
+├── lib/
+│   ├── api-spec/                 # OpenAPI 3.1 + geração de código (Orval)
+│   ├── api-client-react/         # Hooks TanStack Query gerados
+│   ├── api-zod/                  # Schemas Zod gerados
+│   ├── auth-web/                 # Hook useAuth() do frontend
+│   └── db/                       # Modelos Mongoose + conexão MongoDB
+├── scripts/                      # Scripts utilitários (ex.: seed do MongoDB)
+├── vercel.json                   # Configuração de build/rotas da Vercel
+└── pnpm-workspace.yaml
+```
+
+## Variáveis de ambiente
+
+| Variável | Onde é usada | Descrição |
+| --- | --- | --- |
+| `MONGODB_URI` | API | String de conexão do MongoDB (Atlas) |
+| `ADMIN_EMAIL` | API | E-mail do coordenador criado/promovido no primeiro acesso |
+| `ADMIN_PASSWORD` | API | Senha desse coordenador (mínimo 6 caracteres) |
+| `APP_URL` | API | URL pública do app, usada no link de redefinição de senha |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | API | Envio de e-mail (opcional; sem SMTP o link é impresso no log) |
+| `PORT` / `BASE_PATH` | Frontend | Porta e base path do Vite (padrões: `3000` e `/`) |
+| `API_PROXY_TARGET` | Frontend (dev) | Endereço da API usado pelo proxy do Vite (padrão `http://localhost:8080`) |
+
+## Desenvolvimento local
+
+Requer Node.js 24+ e pnpm 10.
+
+```bash
+pnpm install
+
+# 1. MongoDB local (qualquer instância 7+/8+)
+mongod --dbpath ./tmp/mongo
+
+# 2. Popular o banco com os dados de demonstração
+MONGODB_URI="mongodb://localhost:27017/holiday_dashboard" pnpm --filter @workspace/scripts run seed:mongo
+
+# 3. API (porta 8080)
+MONGODB_URI="mongodb://localhost:27017/holiday_dashboard" \
+  PORT=8080 pnpm --filter @workspace/api-server run dev
+
+# 4. Frontend (porta 20421)
+PORT=20421 BASE_PATH=/ pnpm --filter @workspace/vacation-dashboard run dev
+```
+
+O Vite faz proxy de `/api` para `http://localhost:8080` durante o
+desenvolvimento, então o app funciona em `http://localhost:20421`.
+
+## Build e verificação
+
+```bash
+pnpm run typecheck   # tsc --build em todos os pacotes
+pnpm run build       # typecheck + build de cada pacote
+```
+
+## Deploy na Vercel
+
+O projeto usa o preset "Other" com:
+
+- `buildCommand`: `pnpm --filter @workspace/vacation-dashboard run build`
+- `outputDirectory`: `artifacts/vacation-dashboard/dist/public`
+- `api/index.ts` e `api/[...path].ts`: a API Express como Serverless Function
+- rewrite de todas as rotas (fora `/api`) para `/index.html` (SPA)
+
+Configure `MONGODB_URI`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `APP_URL` no painel
+da Vercel (Production e Preview).
+
+## Contrato da API
+
+A especificação OpenAPI fica em `lib/api-spec/openapi.yaml`. Depois de
+alterá-la, regenere os clientes:
+
+```bash
+pnpm --filter @workspace/api-spec run codegen
+```
+
+## Regras de negócio
+
+- Saldo de férias: `(dias trabalhados / 365,25) × 30 − dias aprovados − dias vendidos`
+- Só férias **aprovadas** entram no saldo e na indicatoração "em férias hoje"
+- O primeiro pedido exige saldo ≥ 30 dias
+- Venda de dias: no máximo o saldo disponível; 1/3 do período
+- Coordenadores (`isManager`) aprovam/reprovam pedidos e gestionam a equipe
+- O flag `isManager` é lido do banco a cada requisição (sem cache em sessão)
