@@ -120,6 +120,25 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  // CommonJS build used by the Vercel Serverless Function: the Vercel runtime
+  // compiles the function to CommonJS, so it cannot `require()` an ESM file.
+  await esbuild({
+    entryPoints: [path.resolve(artifactDir, "src/handler.ts")],
+    platform: "node",
+    bundle: true,
+    format: "cjs",
+    outdir: path.resolve(distDir, "cjs"),
+    outExtension: { ".js": ".cjs" },
+    logLevel: "info",
+    // nodemailer is bundled so the function does not depend on the layout of
+    // node_modules at runtime.
+    external: ["*.node", "nodemailer"],
+    sourcemap: "linked",
+    plugins: [
+      esbuildPluginPino({ transports: ["pino-pretty"] })
+    ],
+  });
 }
 
 buildAll().catch((err) => {

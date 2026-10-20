@@ -1,6 +1,6 @@
 /**
  * Catch-all Vercel Function: handles every `/api/*` path.
  */
-import handler from "../artifacts/api-server/dist/handler.mjs";
+const handler = require("../artifacts/api-server/dist/cjs/handler.cjs");
 
-export default handler;
+module.exports = handler;
