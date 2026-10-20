@@ -2,13 +2,13 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @workspace/vacation-dashboard run build",
+  "buildCommand": "pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/vacation-dashboard run build",
   "outputDirectory": "artifacts/vacation-dashboard/dist/public",
   "functions": {
-    "api/index.ts": {
+    "api/index.js": {
       "maxDuration": 30
     },
-    "api/[...path].ts": {
+    "api/[...path].js": {
       "maxDuration": 30
     }
   },
