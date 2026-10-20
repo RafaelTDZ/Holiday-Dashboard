@@ -76,13 +76,27 @@ pnpm run build       # typecheck + build de cada pacote
 
 O projeto usa o preset "Other" com:
 
-- `buildCommand`: `pnpm --filter @workspace/vacation-dashboard run build`
+- `buildCommand`: build do bundle da API + build do frontend
 - `outputDirectory`: `artifacts/vacation-dashboard/dist/public`
-- `api/index.ts` e `api/[...path].ts`: a API Express como Serverless Function
-- rewrite de todas as rotas (fora `/api`) para `/index.html` (SPA)
+- `api/index.js`: a API Express como Serverless Function, montada em `/api`
+- rewrite de `/api/*` para a função e das demais rotas para `/index.html` (SPA)
 
-Configure `MONGODB_URI`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `APP_URL` no painel
-da Vercel (Production e Preview).
+Produção: **https://holiday-dashboard-rafael-1902s-projects.vercel.app**
+
+Configure no painel da Vercel (Production e Preview):
+
+| Variável | Valor |
+| --- | --- |
+| `MONGODB_URI` | String de conexão do MongoDB Atlas (já configurada) |
+| `ADMIN_EMAIL` | E-mail do coordenador (ex.: `admin@dashboard.com`) |
+| `ADMIN_PASSWORD` | Senha desse coordenador |
+| `APP_URL` | URL pública do app |
+| `SEED_DEMO_DATA` | `true` para popular o conjunto de demonstração |
+
+`ADMIN_EMAIL`/`ADMIN_PASSWORD` criam (ou promovem) o coordinator no primeiro
+acesso. Com `SEED_DEMO_DATA=true` o conjunto de demonstração também é criado
+de forma idempotente — os demais usuários usam a senha `senha123`.
+
 
 ## Contrato da API
 
