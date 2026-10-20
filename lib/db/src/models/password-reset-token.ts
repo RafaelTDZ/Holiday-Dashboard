@@ -1,4 +1,6 @@
-import { Schema, model, models, type InferSchemaType, type Model } from "mongoose";
+import mongoose, { type InferSchemaType, type Model } from "mongoose";
+
+const { Schema, model, models } = mongoose;
 
 /**
  * One-time tokens used by the "forgot password" flow.

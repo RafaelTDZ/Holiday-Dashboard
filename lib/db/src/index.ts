@@ -8,3 +8,4 @@ export * from "./models/vacation-sale";
 export * from "./models/notification";
 export * from "./models/password-reset-token";
 export * from "./utils";
+export * from "./seed";

@@ -1,4 +1,6 @@
-import { Schema, model, models, type Model } from "mongoose";
+import mongoose, { type Schema as SchemaType, type Model } from "mongoose";
+
+const { Schema, model, models } = mongoose;
 
 /**
  * Sequential ids for the collections that are exposed through the public API.
@@ -30,6 +32,14 @@ export async function nextSequence(name: string): Promise<number> {
   return counter.seq;
 }
 
+type UpsertQuery = {
+  getOptions: () => { upsert?: boolean };
+  getUpdate: () => Record<string, unknown> | undefined;
+  getFilter: () => unknown;
+  setUpdate: (update: Record<string, unknown>) => void;
+  model: { exists: (filter: unknown) => Promise<unknown> };
+};
+
 /**
  * Fills the numeric `id` field of a document on validation.
  *
@@ -37,13 +47,38 @@ export async function nextSequence(name: string): Promise<number> {
  * true, index: true }`), this only takes care of assigning the next value of
  * the collection counter.
  */
-export function withNumericId<T extends Schema>(
+export function withNumericId<T extends SchemaType>(
   schema: T,
   counterName: string,
 ): T {
   schema.pre("validate", async function (this: { id?: number }) {
     if (this.id == null) {
       this.id = await nextSequence(counterName);
+    }
+  });
+
+  // `findOneAndUpdate` does not run the document validation hooks, so the id
+  // has to be assigned explicitly when the query really inserts a document.
+  schema.pre("findOneAndUpdate", async function (this: UpsertQuery) {
+    const options = this.getOptions();
+    if (!options?.upsert) return;
+
+    const update = this.getUpdate();
+    if (!update) return;
+
+    const set = (update.$set ?? {}) as Record<string, unknown>;
+    if (set.id != null) return;
+
+    // Only when there is no document matching the filter yet
+    const exists = await this.model.exists(this.getFilter());
+    if (exists) return;
+
+    const id = await nextSequence(counterName);
+
+    if (update.$set) {
+      this.setUpdate({ ...update, $set: { ...set, id } });
+    } else {
+      this.setUpdate({ $set: { ...update, id } });
     }
   });
 
