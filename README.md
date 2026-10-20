@@ -45,25 +45,50 @@ aprovações e avisos automáticos.
 
 Requer Node.js 24+ e pnpm 10.
 
+### 1. MongoDB
+
+Qualquer instância 7+/8+ serve (local ou Atlas). No Windows, a versão portable
+não exige privilégios de administrador:
+
+```powershell
+# baixa (uma vez) e extrai o servidor
+$dir = "$env:TEMP\mongodb"
+Invoke-WebRequest -Uri "https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-8.0.23.zip" -OutFile "$dir\mongodb.zip"
+Expand-Archive "$dir\mongodb.zip" "$dir\mongodb" -Force
+
+# sobe em background (independe do terminal)
+New-Item -ItemType Directory -Force -Path "$env:TEMP\mongodb-data" | Out-Null
+Start-Process -FilePath "$dir\mongodb\mongodb-win32-x86_64-windows-8.0.23\bin\mongod.exe" `
+  -ArgumentList @("--dbpath", "$env:TEMP\mongodb-data", "--port", "27017", "--bind_ip", "127.0.0.1") `
+  -WindowStyle Hidden
+```
+
+Em Linux/macOS: `mongod --dbpath ./tmp/mongo --port 27017`.
+
+### 2. Dependências, seed e servidores
+
 ```bash
 pnpm install
 
-# 1. MongoDB local (qualquer instância 7+/8+)
-mongod --dbpath ./tmp/mongo
-
-# 2. Popular o banco com os dados de demonstração
+# popular o banco com os dados de demonstração
 MONGODB_URI="mongodb://localhost:27017/holiday_dashboard" pnpm --filter @workspace/scripts run seed:mongo
 
-# 3. API (porta 8080)
+# API (porta 8080)
 MONGODB_URI="mongodb://localhost:27017/holiday_dashboard" \
   PORT=8080 pnpm --filter @workspace/api-server run dev
 
-# 4. Frontend (porta 20421)
+# Frontend (porta 20421)
 PORT=20421 BASE_PATH=/ pnpm --filter @workspace/vacation-dashboard run dev
 ```
 
 O Vite faz proxy de `/api` para `http://localhost:8080` durante o
 desenvolvimento, então o app funciona em `http://localhost:20421`.
+
+> O `mongod` em background não sobrevive a reinícios do Windows. Se a API
+> responder `{"status":"ok"}` mas os dados não carregarem, verifique se o
+> MongoDB está no ar (`Test-NetConnection localhost -Port 27017`) — a conexão
+> do Mongoose se reconecta sozinha assim que ele voltar.
+
 
 ## Build e verificação
 
