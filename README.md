@@ -89,6 +89,30 @@ desenvolvimento, então o app funciona em `http://localhost:20421`.
 > MongoDB está no ar (`Test-NetConnection localhost -Port 27017`) — a conexão
 > do Mongoose se reconecta sozinha assim que ele voltar.
 
+### Rodar em segundo plano (Windows)
+
+Processos iniciados dentro de um terminal integrado podem ser encerrados
+quando a sessão fecha. Para manter a API e o frontend de pé, inicie-os
+desacoplados:
+
+```powershell
+$logs = "$env:TEMP\holiday-dashboard-logs"; New-Item -ItemType Directory -Force -Path $logs | Out-Null
+
+# API
+$env:PORT="8080"; $env:MONGODB_URI="mongodb://127.0.0.1:27017/holiday_dashboard"
+Start-Process node.exe -ArgumentList @("--enable-source-maps", "artifacts\api-server\dist\index.mjs") `
+  -WindowStyle Hidden -RedirectStandardOutput "$logs\api.log" -RedirectStandardError "$logs\api.err.log"
+
+# Frontend
+$env:PORT="20421"; $env:BASE_PATH="/"; $env:API_PROXY_TARGET="http://localhost:8080"
+Start-Process cmd.exe -ArgumentList @("/c", "pnpm --filter @workspace/vacation-dashboard run dev > `"$logs\web.log`" 2>&1") -WindowStyle Hidden
+```
+
+Para encerrar: `Stop-Process -Id (Get-NetTCPConnection -LocalPort 8080,20421 -State Listen).OwningProcess`.
+
+No Linux/macOS, o equivalente é `nohup ... &` (ou `tmux`/`screen`).
+
+
 
 ## Build e verificação
 
