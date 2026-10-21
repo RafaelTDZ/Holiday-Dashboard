@@ -4,17 +4,41 @@ import {
   EmployeeModel,
   VacationModel,
   VacationSaleModel,
+  NotificationModel,
   UserModel,
   SessionModel,
   PasswordResetTokenModel,
+  type Employee,
 } from "@workspace/db";
 import {
   CreateEmployeeBody,
   UpdateEmployeeBody,
 } from "@workspace/api-zod";
 import { calculateVacationStats, vacationDurationDays } from "../lib/vacation-utils";
+import { validateSaleDays } from "../lib/vacation-sale-policy";
 import { getSessionId } from "../lib/auth";
 import { validatePassword } from "../lib/password-policy";
+import { isDuplicateKeyError } from "../lib/db-errors";
+
+/**
+ * Funcionário lido do banco (documento "lean" ou documento criado), com o
+ * `_id` do MongoDB. É o tipo usado quando o resultado da consulta precisa
+ * ser atribuído a uma variável declarada fora do `try`.
+ */
+type EmployeeRecord = Employee & { _id: unknown };
+
+/**
+ * Mensagem devolvida quando o vínculo usuário ↔ funcionário já existe (BIZ-07).
+ * O índice único de `employees.userId` garante a mesma regra no banco.
+ */
+const EMPLOYEE_USER_ALREADY_LINKED_MESSAGE =
+  "Este usuário já está vinculado a outro funcionário. Cada usuário pode estar vinculado a apenas um funcionário.";
+
+/**
+ * Identifica o erro de chave duplicada do MongoDB (código 11000), que é o
+ * que o índice único de `employees.userId` dispara quando o vínculo já
+ * existe (BIZ-07).
+ */
 
 const toDateStr = (d: Date | string): string => {
   if (typeof d === "string") {
@@ -129,6 +153,15 @@ router.post("/employees", async (req: Request, res: Response): Promise<void> => 
   let userId: string;
   if (existingUser) {
     userId = String(existingUser._id);
+
+    // The user ↔ employee relation is 1:1 (BIZ-07): reusing an account that
+    // is already linked to another employee is rejected instead of creating
+    // an ambiguous link (the `/me/employee` route would pick one of them).
+    const linkedEmployee = await EmployeeModel.findOne({ userId }).lean();
+    if (linkedEmployee) {
+      res.status(409).json({ error: EMPLOYEE_USER_ALREADY_LINKED_MESSAGE });
+      return;
+    }
   } else {
     const passwordHash = await bcrypt.hash(password, 12);
     const newUser = await UserModel.create({
@@ -138,11 +171,22 @@ router.post("/employees", async (req: Request, res: Response): Promise<void> => 
     userId = String(newUser._id);
   }
 
-  const employee = await EmployeeModel.create({
-    ...employeeFields,
-    hireDate: toDateStr(employeeFields.hireDate as Date | string),
-    userId,
-  });
+  let employee: EmployeeRecord;
+  try {
+    employee = await EmployeeModel.create({
+      ...employeeFields,
+      hireDate: toDateStr(employeeFields.hireDate as Date | string),
+      userId,
+    });
+  } catch (err) {
+    // The unique index of `employees.userId` is the last line of defense:
+    // it also covers the race between the check above and this insert.
+    if (isDuplicateKeyError(err)) {
+      res.status(409).json({ error: EMPLOYEE_USER_ALREADY_LINKED_MESSAGE });
+      return;
+    }
+    throw err;
+  }
 
   const vacations = await VacationModel.find({ employeeId: employee.id }).lean();
   const stats = calculateVacationStats(employee.hireDate, vacations, 0);
@@ -239,11 +283,22 @@ router.put("/employees/:id", async (req: Request, res: Response): Promise<void> 
     }),
   };
 
-  const emp = await EmployeeModel.findOneAndUpdate(
-    { id },
-    { $set: updateData },
-    { new: true },
-  ).lean();
+  let emp: EmployeeRecord | null;
+  try {
+    emp = await EmployeeModel.findOneAndUpdate(
+      { id },
+      { $set: updateData },
+      { new: true },
+    ).lean();
+  } catch (err) {
+    // The unique index of `employees.userId` (BIZ-07) rejects an update that
+    // would link the same user to two employees.
+    if (isDuplicateKeyError(err)) {
+      res.status(409).json({ error: EMPLOYEE_USER_ALREADY_LINKED_MESSAGE });
+      return;
+    }
+    throw err;
+  }
 
   if (!emp) {
     res.status(404).json({ error: "Employee not found" });
@@ -302,11 +357,21 @@ router.delete("/employees/:id", async (req: Request, res: Response): Promise<voi
   }
 
   // Cascades that the relational schema used to handle
-  const vacations = await VacationModel.find({ employeeId: id }).select("id").lean();
-  const vacationIds = vacations.map((v) => v.id);
+  //
+  // The notifications are stored by `userId` (the user of the employee), so
+  // they are removed together with the account of the employee (BIZ-06). An
+  // employee created by a manager without an account has no `userId`: in that
+  // case only the notifications linked by `employeeId` are removed.
+  const employeeUserId =
+    typeof emp.userId === "string" && emp.userId.length > 0 ? emp.userId : null;
+
   await Promise.all([
     VacationModel.deleteMany({ employeeId: id }),
     VacationSaleModel.deleteMany({ employeeId: id }),
+    NotificationModel.deleteMany({ employeeId: id }),
+    ...(employeeUserId
+      ? [NotificationModel.deleteMany({ userId: String(employeeUserId) })]
+      : []),
   ]);
 
   res.sendStatus(204);
@@ -344,6 +409,13 @@ router.put("/employees/:id/password", async (req: Request, res: Response): Promi
 
   if (typeof newPassword !== "string") {
     res.status(400).json({ error: "A nova senha é obrigatória." });
+    return;
+  }
+
+  // An employee created by a manager may not have an account at all: in that
+  // case there is no password to change (and no user to look up).
+  if (!emp.userId) {
+    res.status(404).json({ error: "Usuário não encontrado." });
     return;
   }
 
@@ -456,10 +528,17 @@ router.post("/employees/:id/vacation-sales", async (req: Request, res: Response)
   const alreadySold = existingSales.reduce((acc, s) => acc + s.daysSold, 0);
   const stats = calculateVacationStats(emp.hireDate, vacations, alreadySold);
 
-  if (daysSold > Math.floor(stats.vacationBalanceDays)) {
-    res.status(400).json({
-      error: `Saldo insuficiente. Saldo disponível: ${stats.vacationBalanceDays.toFixed(1)} dias.`,
-    });
+  // BIZ-01 — venda de dias: no máximo o saldo disponível e 1/3 do período
+  // aquisitivo (10 de 30 dias) por operação. O limite da operação é
+  // verificado antes do saldo; a mensagem de saldo insuficiente continua a
+  // mesma de sempre.
+  const saleCheck = validateSaleDays({
+    daysSold,
+    balanceDays: stats.vacationBalanceDays,
+  });
+
+  if (!saleCheck.valid) {
+    res.status(400).json({ error: saleCheck.message });
     return;
   }
 

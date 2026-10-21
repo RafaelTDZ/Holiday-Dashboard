@@ -19,13 +19,28 @@ const employeeSchema = withNumericId(
       role: { type: String, required: true },
       department: { type: String, required: true },
       hireDate: { type: String, required: true },
-      userId: { type: String, default: null, index: true },
+      // Sem `default: null` de propósito: um funcionário criado pelo gestor
+      // pode não ter conta de usuário e, nesse caso, o campo simplesmente
+      // **não existe** no documento. É o que permite que o índice único e
+      // sparse abaixo aceite vários funcionários sem usuário — um índice
+      // sparse ignora os documentos sem o campo, mas não ignora os que têm o
+      // campo preenchido com `null`.
+      userId: { type: String },
       createdAt: { type: Date, default: () => new Date() },
     },
     { id: false, collection: "employees" },
   ),
   "employee",
 );
+
+/**
+ * Vínculo usuário ↔ funcionário é 1:1 (BIZ-07).
+ *
+ * O índice é único para impedir que o mesmo usuário esteja vinculado a dois
+ * funcionários (o `/me/employee` escolheria um deles de forma arbitrária) e
+ * sparse para permitir mais de um funcionário sem conta de usuário.
+ */
+employeeSchema.index({ userId: 1 }, { unique: true, sparse: true });
 
 export type Employee = InferSchemaType<typeof employeeSchema>;
 

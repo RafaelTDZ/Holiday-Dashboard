@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { SessionModel } from "./models/session";
 import { PasswordResetTokenModel } from "./models/password-reset-token";
+import { EmployeeModel } from "./models/employee";
 
 /**
  * MongoDB connection helper.
@@ -59,6 +60,22 @@ export async function syncModelIndexes(): Promise<void> {
     SessionModel.syncIndexes(),
     PasswordResetTokenModel.syncIndexes(),
   ]);
+
+  // The unique and sparse index of `employees.userId` (BIZ-07) is synced
+  // separately: creating it fails when the collection still has two
+  // employees sharing the same `userId` (legacy data), and that must not
+  // take the whole application down. The warning below points to the data
+  // that has to be cleaned up manually (duplicated `userId`).
+  try {
+    await EmployeeModel.syncIndexes();
+  } catch (err) {
+    console.warn(
+      "[@workspace/db] Could not sync the `employees` indexes: check for employees " +
+        "sharing the same `userId` (legacy duplicates) and remove them manually. " +
+        "The unique index on `employees.userId` is not active until then.",
+      err,
+    );
+  }
 }
 
 export { mongoose };
