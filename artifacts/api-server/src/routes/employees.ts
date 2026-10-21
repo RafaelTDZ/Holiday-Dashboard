@@ -562,13 +562,21 @@ router.delete("/employees/:id/vacation-sales/:saleId", async (req: Request, res:
     return;
   }
 
+  const id = parseId(req.params.id);
+  if (id === null) {
+    res.status(400).json({ error: "Invalid employee ID" });
+    return;
+  }
+
   const saleId = parseId(req.params.saleId);
   if (saleId === null) {
     res.status(400).json({ error: "Invalid sale ID" });
     return;
   }
 
-  const sale = await VacationSaleModel.findOneAndDelete({ id: saleId }).lean();
+  // The sale is scoped by the employee of the path: a sale of another
+  // employee must not be deleted through this route.
+  const sale = await VacationSaleModel.findOneAndDelete({ id: saleId, employeeId: id }).lean();
 
   if (!sale) {
     res.status(404).json({ error: "Venda não encontrada" });
