@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { EmployeeModel, VacationModel } from "@workspace/db";
 import { RegisterAsEmployeeBody } from "@workspace/api-zod";
 import { calculateVacationStats } from "../lib/vacation-utils";
+import { isDuplicateKeyError } from "../lib/db-errors";
 
 const toDateStr = (d: Date | string): string => {
   if (typeof d === "string") {
@@ -65,13 +66,25 @@ router.post("/me/employee", async (req: Request, res: Response): Promise<void> =
 
   const { name, role, department, hireDate } = parsed.data;
 
-  const emp = await EmployeeModel.create({
-    name,
-    role,
-    department,
-    hireDate: toDateStr(hireDate as unknown as Date | string),
-    userId,
-  });
+  let emp;
+  try {
+    emp = await EmployeeModel.create({
+      name,
+      role,
+      department,
+      hireDate: toDateStr(hireDate as unknown as Date | string),
+      userId,
+    });
+  } catch (err) {
+    // The unique index on `employee.userId` rejects a second link between the
+    // same user and two employees (a race between the check above and the
+    // insert).
+    if (isDuplicateKeyError(err)) {
+      res.status(409).json({ error: "Usuário já está vinculado a um funcionário." });
+      return;
+    }
+    throw err;
+  }
 
   const stats = calculateVacationStats(emp.hireDate, []);
   res.status(201).json({

@@ -94,8 +94,12 @@ export async function seedDemoData(options: SeedOptions = {}): Promise<void> {
 
     const userId = String(user._id);
 
+    // The upsert is keyed by `userId` (not by name) because the `userId`
+    // index is unique: keying by name would create a second employee record
+    // with the same `userId` whenever the employee was renamed in the app,
+    // and the unique index would reject it.
     await EmployeeModel.findOneAndUpdate(
-      { name: employee.name },
+      { userId },
       {
         $set: {
           name: employee.name,

@@ -41,6 +41,7 @@ aprovações e avisos automáticos.
 | `GOOGLE_CLIENT_SECRET` | API | Client secret do OAuth 2.0 do Google |
 | `GOOGLE_WORKSPACE_DOMAIN` | API | Domínio do Workspace usado no parâmetro `hd` do Google (padrão: `ALLOWED_EMAIL_DOMAIN`) |
 | `APP_URL` | API | URL pública do app, usada no link de redefinição de senha |
+| `CORS_ORIGINS` | API | Origens liberadas no CORS, separadas por vírgula (padrão: `APP_URL` + `localhost`; `*` só em desenvolvimento) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | API | Envio de e-mail (opcional; sem SMTP o link é impresso no log) |
 | `PORT` / `BASE_PATH` | Frontend | Porta e base path do Vite (padrões: `3000` e `/`) |
 | `API_PROXY_TARGET` | Frontend (dev) | Endereço da API usado pelo proxy do Vite (padrão `http://localhost:8080`) |
@@ -76,6 +77,9 @@ pnpm install
 
 # popular o banco com os dados de demonstração
 MONGODB_URI="mongodb://localhost:27017/holiday_dashboard" pnpm --filter @workspace/scripts run seed:mongo
+
+# auditar os dados de férias (duplicidades, saldo negativo, sobreposições)
+MONGODB_URI="mongodb://localhost:27017/holiday_dashboard" pnpm --filter @workspace/scripts run audit:vacations
 
 # API (porta 8080)
 MONGODB_URI="mongodb://localhost:27017/holiday_dashboard" \
