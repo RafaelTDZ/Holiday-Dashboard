@@ -88,6 +88,12 @@ PORT=20421 BASE_PATH=/ pnpm --filter @workspace/vacation-dashboard run dev
 O Vite faz proxy de `/api` para `http://localhost:8080` durante o
 desenvolvimento, então o app funciona em `http://localhost:20421`.
 
+> O seed automático (o que roda no *boot* da API) exige **dois** opt-ins:
+> `SEED_DEMO_DATA=true` **e** `ALLOW_DEMO_SEED=true`. Em produção
+> (`VERCEL_ENV=production`) ele nunca roda, mesmo com as duas variáveis. O
+> comando `pnpm --filter @workspace/scripts run seed:mongo` popula o banco
+> direto e não passa por essa regra.
+
 > O `mongod` em background não sobrevive a reinícios do Windows. Se a API
 > responder `{"status":"ok"}` mas os dados não carregarem, verifique se o
 > MongoDB está no ar (`Test-NetConnection localhost -Port 27017`) — a conexão
@@ -146,6 +152,7 @@ Configure no painel da Vercel (Production e Preview):
 | `ADMIN_PASSWORD` | Senha desse coordenador |
 | `APP_URL` | URL pública do app |
 | `SEED_DEMO_DATA` | `true` para popular o conjunto de demonstração |
+| `ALLOW_DEMO_SEED` | `true` é o segundo opt-in exigido para o seed de demonstração rodar (nunca em produção) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Credenciais do OAuth 2.0 do Google (opcional) |
 
 `ADMIN_EMAIL`/`ADMIN_PASSWORD` criam (ou promovem) o coordinator no primeiro
