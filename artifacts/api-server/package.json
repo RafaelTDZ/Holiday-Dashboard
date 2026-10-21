@@ -17,6 +17,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2",
     "express": "^5",
+    "google-auth-library": "^11.3.1",
     "nodemailer": "^8.0.4",
     "pino": "^9",
     "pino-http": "^10"

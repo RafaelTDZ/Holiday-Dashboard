@@ -4,6 +4,7 @@ import { GetCurrentAuthUserResponse } from "@workspace/api-zod";
 import { UserModel, PasswordResetTokenModel } from "@workspace/db";
 import { randomBytes } from "crypto";
 import { sendPasswordResetEmail } from "../lib/email";
+import { logger } from "../lib/logger";
 import {
   getAllowedEmailDomain,
   getCompanyEmailError,
@@ -19,8 +20,24 @@ import {
   SESSION_TTL,
   type SessionData,
 } from "../lib/auth";
+import {
+  buildGoogleAuthUrl,
+  getGoogleRedirectUri,
+  isGoogleAuthEnabled,
+  verifyGoogleCode,
+} from "../lib/google-auth";
 
 const router: IRouter = Router();
+
+/** Cookie used to protect the OAuth round-trip against CSRF. */
+const GOOGLE_STATE_COOKIE = "google_oauth_state";
+const GOOGLE_STATE_TTL = 10 * 60 * 1000;
+
+function appBaseUrl(req: Request): string {
+  const base = process.env.APP_URL?.replace(/\/$/, "") ?? `${req.protocol}://${req.get("host")}`;
+  const appBase = process.env.APP_BASE_PATH ?? "";
+  return `${base}${appBase}`;
+}
 
 function setSessionCookie(res: Response, sid: string) {
   res.cookie(SESSION_COOKIE, sid, {
@@ -68,6 +85,96 @@ router.get("/auth/user", async (req: Request, res: Response) => {
   }
 
   res.json(GetCurrentAuthUserResponse.parse({ user: toAuthUser(user) }));
+});
+
+router.get("/auth/providers", (_req: Request, res: Response) => {
+  res.json({ google: isGoogleAuthEnabled() });
+});
+
+router.get("/auth/google", (req: Request, res: Response) => {
+  if (!isGoogleAuthEnabled()) {
+    res.status(404).json({ error: "Login com Google não configurado." });
+    return;
+  }
+
+  const state = randomBytes(16).toString("hex");
+  res.cookie(GOOGLE_STATE_COOKIE, state, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: GOOGLE_STATE_TTL,
+  });
+
+  res.redirect(buildGoogleAuthUrl(state));
+});
+
+router.get("/auth/google/callback", async (req: Request, res: Response) => {
+  const loginUrl = `${appBaseUrl(req)}/login`;
+  const redirect = (params: string) => res.redirect(`${loginUrl}?${params}`);
+
+  if (!isGoogleAuthEnabled()) {
+    redirect("error=google_indisponivel");
+    return;
+  }
+
+  const { code, state, error } = req.query as Record<string, string | undefined>;
+
+  if (error) {
+    redirect(`error=${encodeURIComponent(error)}`);
+    return;
+  }
+  if (!code || !state) {
+    redirect("error=google_invalido");
+    return;
+  }
+
+  const savedState = req.cookies?.[GOOGLE_STATE_COOKIE];
+  res.clearCookie(GOOGLE_STATE_COOKIE, { path: "/" });
+
+  if (!savedState || savedState !== state) {
+    redirect("error=google_invalido");
+    return;
+  }
+
+  let profile;
+  try {
+    profile = await verifyGoogleCode(code);
+  } catch (err) {
+    logger.error({ err }, "Google login failed");
+    redirect("error=google_falha");
+    return;
+  }
+
+  if (!isAllowedCompanyEmail(profile.email)) {
+    redirect("error=dominio_nao_permitido");
+    return;
+  }
+
+  // Existing accounts keep their password and manager flag; the Google
+  // profile only refreshes the display name and the picture.
+  const user = await UserModel.findOneAndUpdate(
+    { email: profile.email },
+    {
+      $set: {
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        profileImageUrl: profile.profileImageUrl,
+      },
+      $setOnInsert: { email: profile.email },
+    },
+    { upsert: true, new: true },
+  );
+
+  const sessionData: SessionData = {
+    user: toAuthUser(user),
+    access_token: "",
+    localAuth: false,
+  };
+
+  const sid = await createSession(sessionData);
+  setSessionCookie(res, sid);
+  res.redirect(appBaseUrl(req) || "/");
 });
 
 router.get("/logout", async (req: Request, res: Response) => {
