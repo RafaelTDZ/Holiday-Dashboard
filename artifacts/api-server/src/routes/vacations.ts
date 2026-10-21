@@ -17,6 +17,28 @@ function parseId(value: string | string[] | undefined): number | null {
   return Number.isNaN(id) ? null : id;
 }
 
+/**
+ * Authorization rule for deleting a vacation record.
+ *
+ * Pure function (no DB / request access) so it can be unit tested:
+ * - managers (`isManager`) may delete any vacation;
+ * - the employee who owns the vacation may delete their own;
+ * - everyone else is denied.
+ */
+export function canDeleteVacation(params: {
+  isManager: boolean;
+  userId: string;
+  ownerUserId: string | null | undefined;
+}): boolean {
+  if (params.isManager) {
+    return true;
+  }
+  if (!params.ownerUserId) {
+    return false;
+  }
+  return params.ownerUserId === params.userId;
+}
+
 function toDateStr(d: Date | string): string {
   if (typeof d === "string") {
     return d.split("T")[0];
@@ -355,12 +377,28 @@ router.delete(
       return;
     }
 
-    const vacation = await VacationModel.findOneAndDelete({ id }).lean();
+    const vacation = await VacationModel.findOne({ id }).lean();
 
     if (!vacation) {
       res.status(404).json({ error: "Vacation not found" });
       return;
     }
+
+    // The owner of the vacation is the employee linked to the authenticated
+    // user. Managers may delete any vacation; employees only their own.
+    const employee = await EmployeeModel.findOne({ id: vacation.employeeId }).lean();
+
+    const allowed = canDeleteVacation({
+      isManager: req.user!.isManager,
+      userId: req.user!.id,
+      ownerUserId: employee?.userId,
+    });
+    if (!allowed) {
+      res.status(403).json({ error: "Sem permissão para excluir estas férias." });
+      return;
+    }
+
+    await VacationModel.deleteOne({ id });
 
     res.sendStatus(204);
   },
