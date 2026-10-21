@@ -17,7 +17,9 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AuthProviders,
   AuthUserEnvelope,
+  CompleteGoogleLoginParams,
   CreateEmployeeBody,
   CreateVacationBody,
   DashboardSummary,
@@ -264,6 +266,256 @@ export function useLogoutBrowserSession<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getLogoutBrowserSessionQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List the external login providers configured in the API
+ */
+export const getListAuthProvidersUrl = () => {
+  return `/api/auth/providers`;
+};
+
+export const listAuthProviders = async (
+  options?: RequestInit,
+): Promise<AuthProviders> => {
+  return customFetch<AuthProviders>(getListAuthProvidersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAuthProvidersQueryKey = () => {
+  return [`/api/auth/providers`] as const;
+};
+
+export const getListAuthProvidersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAuthProviders>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAuthProviders>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAuthProvidersQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAuthProviders>>
+  > = ({ signal }) => listAuthProviders({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAuthProviders>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAuthProvidersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAuthProviders>>
+>;
+export type ListAuthProvidersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List the external login providers configured in the API
+ */
+
+export function useListAuthProviders<
+  TData = Awaited<ReturnType<typeof listAuthProviders>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAuthProviders>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAuthProvidersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Redirect to the Google consent screen
+ */
+export const getStartGoogleLoginUrl = () => {
+  return `/api/auth/google`;
+};
+
+export const startGoogleLogin = async (
+  options?: RequestInit,
+): Promise<unknown> => {
+  return customFetch<unknown>(getStartGoogleLoginUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getStartGoogleLoginQueryKey = () => {
+  return [`/api/auth/google`] as const;
+};
+
+export const getStartGoogleLoginQueryOptions = <
+  TData = Awaited<ReturnType<typeof startGoogleLogin>>,
+  TError = ErrorType<void | ErrorEnvelope>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof startGoogleLogin>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getStartGoogleLoginQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof startGoogleLogin>>
+  > = ({ signal }) => startGoogleLogin({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof startGoogleLogin>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type StartGoogleLoginQueryResult = NonNullable<
+  Awaited<ReturnType<typeof startGoogleLogin>>
+>;
+export type StartGoogleLoginQueryError = ErrorType<void | ErrorEnvelope>;
+
+/**
+ * @summary Redirect to the Google consent screen
+ */
+
+export function useStartGoogleLogin<
+  TData = Awaited<ReturnType<typeof startGoogleLogin>>,
+  TError = ErrorType<void | ErrorEnvelope>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof startGoogleLogin>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getStartGoogleLoginQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Handle the Google OAuth callback and start the session
+ */
+export const getCompleteGoogleLoginUrl = (
+  params?: CompleteGoogleLoginParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/auth/google/callback?${stringifiedParams}`
+    : `/api/auth/google/callback`;
+};
+
+export const completeGoogleLogin = async (
+  params?: CompleteGoogleLoginParams,
+  options?: RequestInit,
+): Promise<unknown> => {
+  return customFetch<unknown>(getCompleteGoogleLoginUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getCompleteGoogleLoginQueryKey = (
+  params?: CompleteGoogleLoginParams,
+) => {
+  return [`/api/auth/google/callback`, ...(params ? [params] : [])] as const;
+};
+
+export const getCompleteGoogleLoginQueryOptions = <
+  TData = Awaited<ReturnType<typeof completeGoogleLogin>>,
+  TError = ErrorType<void>,
+>(
+  params?: CompleteGoogleLoginParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof completeGoogleLogin>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getCompleteGoogleLoginQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof completeGoogleLogin>>
+  > = ({ signal }) =>
+    completeGoogleLogin(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof completeGoogleLogin>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type CompleteGoogleLoginQueryResult = NonNullable<
+  Awaited<ReturnType<typeof completeGoogleLogin>>
+>;
+export type CompleteGoogleLoginQueryError = ErrorType<void>;
+
+/**
+ * @summary Handle the Google OAuth callback and start the session
+ */
+
+export function useCompleteGoogleLogin<
+  TData = Awaited<ReturnType<typeof completeGoogleLogin>>,
+  TError = ErrorType<void>,
+>(
+  params?: CompleteGoogleLoginParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof completeGoogleLogin>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getCompleteGoogleLoginQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

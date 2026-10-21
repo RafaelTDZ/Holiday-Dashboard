@@ -61,6 +61,56 @@ paths:
       responses:
         '302':
           description: Redirect to the application root.
+  /auth/providers:
+    get:
+      tags: [Auth]
+      operationId: listAuthProviders
+      summary: List the external login providers configured in the API
+      responses:
+        '200':
+          description: The available providers.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthProviders'
+  /auth/google:
+    get:
+      tags: [Auth]
+      operationId: startGoogleLogin
+      summary: Redirect to the Google consent screen
+      responses:
+        '302':
+          description: Redirect to the Google OAuth consent screen.
+        '404':
+          description: Google login is not configured on the server.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/google/callback:
+    get:
+      tags: [Auth]
+      operationId: completeGoogleLogin
+      summary: Handle the Google OAuth callback and start the session
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the application root on success, or back to the login page with an `error` code.
   /auth/register-local:
     post:
       tags: [Auth]
@@ -557,6 +607,13 @@ components:
           oneOf:
             - $ref: '#/components/schemas/AuthUser'
             - type: 'null'
+    AuthProviders:
+      type: object
+      required: [google]
+      properties:
+        google:
+          type: boolean
+          description: Whether the Google login is configured on the server.
     LocalCredentialsBody:
       type: object
       required: [email, password]

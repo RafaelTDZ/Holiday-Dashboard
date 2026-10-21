@@ -51,6 +51,41 @@ Verifica o status de saude do servidor.
 
 ### Autenticacao
 
+#### GET /api/auth/providers
+
+Informa quais provedores externos de login estao configurados.
+
+**Resposta 200:**
+```json
+{ "google": true }
+```
+
+---
+
+#### GET /api/auth/google
+
+Redireciona para a tela de consentimento do Google (OAuth 2.0). Salva um
+`state` aleatorio em cookie para proteger o round-trip contra CSRF.
+
+**Resposta 302:** para `https://accounts.google.com/o/oauth2/v2/auth`
+**Resposta 404:** `{ "error": "Login com Google não configurado." }`
+
+---
+
+#### GET /api/auth/google/callback
+
+Callback do Google. Valida o `state`, troca o `code` por tokens, confere a
+assinatura do id_token, `email_verified` e o dominio permitido, cria (ou
+atualiza) o usuario e inicia a sessao com o cookie `sid`.
+
+**Query:** `code`, `state`, `error`
+
+**Resposta 302:** para a raiz do app em caso de sucesso, ou para
+`/login?error=<codigo>` (`google_invalido`, `google_falha`,
+`dominio_nao_permitido`, `access_denied`).
+
+---
+
 #### POST /api/auth/register-local
 
 Cria uma conta com e-mail e senha e inicia a sessao.

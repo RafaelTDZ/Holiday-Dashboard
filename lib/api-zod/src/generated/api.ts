@@ -50,6 +50,24 @@ export const LogoutBrowserSessionHeader = zod.object({
 });
 
 /**
+ * @summary List the external login providers configured in the API
+ */
+export const ListAuthProvidersResponse = zod.object({
+  google: zod
+    .boolean()
+    .describe("Whether the Google login is configured on the server."),
+});
+
+/**
+ * @summary Handle the Google OAuth callback and start the session
+ */
+export const CompleteGoogleLoginQueryParams = zod.object({
+  code: zod.coerce.string().optional(),
+  state: zod.coerce.string().optional(),
+  error: zod.coerce.string().optional(),
+});
+
+/**
  * @summary Create an account with e-mail and password
  */
 export const registerLocalUserBodyPasswordMin = 6;

@@ -7,8 +7,10 @@
  */
 
 export * from "./authorizationSessionHeaderParameter";
+export * from "./authProviders";
 export * from "./authUser";
 export * from "./authUserEnvelope";
+export * from "./completeGoogleLoginParams";
 export * from "./createEmployeeBody";
 export * from "./createVacationBody";
 export * from "./dashboardSummary";

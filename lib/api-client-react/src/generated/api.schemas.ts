@@ -26,6 +26,11 @@ export interface AuthUserEnvelope {
   user: AuthUser | null;
 }
 
+export interface AuthProviders {
+  /** Whether the Google login is configured on the server. */
+  google: boolean;
+}
+
 export interface LocalCredentialsBody {
   email: string;
   /** @minLength 6 */
@@ -210,3 +215,9 @@ export interface DashboardSummary {
  * Opaque session token — `Bearer <sid>`.
  */
 export type AuthorizationSessionHeaderParameter = string;
+
+export type CompleteGoogleLoginParams = {
+  code?: string;
+  state?: string;
+  error?: string;
+};

@@ -37,6 +37,9 @@ aprovações e avisos automáticos.
 | `ADMIN_EMAIL` | API | E-mail do coordenador criado/promovido no primeiro acesso (ex.: `admin@tdztrading.com.br`) |
 | `ADMIN_PASSWORD` | API | Senha desse coordenador (mínimo 6 caracteres) |
 | `ALLOWED_EMAIL_DOMAIN` | API + Frontend | Domínio corporativo liberado para login, cadastro e recuperação de senha (padrão `tdztrading.com.br`; use `*` para desativar a restrição) |
+| `GOOGLE_CLIENT_ID` | API | Client ID do OAuth 2.0 do Google (login com Google Workspace). Sem ele o botão não aparece |
+| `GOOGLE_CLIENT_SECRET` | API | Client secret do OAuth 2.0 do Google |
+| `GOOGLE_WORKSPACE_DOMAIN` | API | Domínio do Workspace usado no parâmetro `hd` do Google (padrão: `ALLOWED_EMAIL_DOMAIN`) |
 | `APP_URL` | API | URL pública do app, usada no link de redefinição de senha |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | API | Envio de e-mail (opcional; sem SMTP o link é impresso no log) |
 | `PORT` / `BASE_PATH` | Frontend | Porta e base path do Vite (padrões: `3000` e `/`) |
@@ -143,12 +146,40 @@ Configure no painel da Vercel (Production e Preview):
 | `ADMIN_PASSWORD` | Senha desse coordenador |
 | `APP_URL` | URL pública do app |
 | `SEED_DEMO_DATA` | `true` para popular o conjunto de demonstração |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Credenciais do OAuth 2.0 do Google (opcional) |
 
 `ADMIN_EMAIL`/`ADMIN_PASSWORD` criam (ou promovem) o coordinator no primeiro
 acesso. Com `SEED_DEMO_DATA=true` o conjunto de demonstração também é criado
 de forma idempotente — os demais usuários usam a senha `senha123`.
 
 > Restrição de acesso: com `ALLOWED_EMAIL_DOMAIN=tdztrading.com.br`, apenas e-mails desse domínio podem fazer login, cadastro ou solicitar redefinição de senha. Se precisar abrir para testes, defina `ALLOWED_EMAIL_DOMAIN=*`.
+
+### Login com Google (Workspace)
+
+Para exibir o botão "Entrar com Google" no login:
+
+1. No [Google Cloud Console](https://console.cloud.google.com/), crie (ou use) um
+   projeto e ative a **Google Identity Services** (OAuth 2.0).
+2. Crie um **OAuth 2.0 Client ID** do tipo *Web application*.
+3. Em *Authorized redirect URIs*, cadastre a URL de callback do app:
+   `https://<seu-dominio>/api/auth/google/callback`
+   (o `APP_URL` da aplicação é usado automaticamente).
+4. Copie o *Client ID* e o *Client secret* para as variáveis
+   `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` (na Vercel e no `.env` local).
+
+Detalhes:
+
+- O botão só aparece quando as duas variáveis estão configuradas
+  (`GET /api/auth/providers`).
+- O domínio do Workspace é enviado como `hd` (param `GOOGLE_WORKSPACE_DOMAIN`,
+  por padrão `ALLOWED_EMAIL_DOMAIN`) e **validado no servidor** antes de criar
+  a sessão — o `hd` sozinho não é garantia.
+- Quem já tem conta local com o mesmo e-mail mantém a senha e o flag de
+  gestor; contas novas são criadas como usuário comum e podem ser promovidas
+  pelo coordenador.
+- Domínios de preview da Vercel mudam a cada deploy e o Google só aceita URIs
+  estáticos: cadastre o redirect URI do domínio de produção. Em preview o botão
+  do Google fica oculto e o login local continua disponível.
 
 
 ## Contrato da API
