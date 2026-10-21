@@ -7,7 +7,14 @@ import {
   VacationSaleModel,
 } from "@workspace/db";
 import { CreateVacationBody } from "@workspace/api-zod";
-import { vacationDurationDays, calculateVacationStats } from "../lib/vacation-utils";
+import {
+  calculateAccruedDays,
+  calculateVacationStats,
+  canApproveVacation,
+  hasVacationOverlap,
+  sumApprovedVacationDays,
+  vacationDurationDays,
+} from "../lib/vacation-utils";
 
 const router: IRouter = Router();
 
@@ -44,6 +51,15 @@ function toDateStr(d: Date | string): string {
     return d.split("T")[0];
   }
   return d.toISOString().split("T")[0];
+}
+
+/** Formata uma data `YYYY-MM-DD` no padrão brasileiro (dd/mm/aaaa). */
+function formatDateBr(date: string): string {
+  const [year, month, day] = date.split("-");
+  if (!year || !month || !day) {
+    return date;
+  }
+  return `${day}/${month}/${year}`;
 }
 
 function serializeVacation(vacation: {
@@ -198,6 +214,38 @@ router.post(
       return;
     }
 
+    // BIZ-04 — sobreposição: o período pedido não pode cruzar nenhuma férias
+    // pendente ou aprovada já existente do mesmo funcionário (comparação
+    // inclusiva nas extremidades; períodos adjacentes são aceitos).
+    const conflictingVacations = existingVacations.filter(
+      (v) =>
+        (v.status === "pending" || v.status === "approved") &&
+        hasVacationOverlap({ startDate, endDate }, [v]),
+    );
+
+    if (conflictingVacations.length > 0) {
+      const conflict = conflictingVacations[0];
+      res.status(400).json({
+        error: `O período solicitado conflita com outro pedido de férias já existente (${formatDateBr(conflict.startDate)} a ${formatDateBr(conflict.endDate)}). Escolha um período sem sobreposição.`,
+      });
+      return;
+    }
+
+    // BIZ-04 — duração: mínimo de 1 dia e cabimento no saldo disponível.
+    const duration = vacationDurationDays(startDate, endDate);
+    if (duration < 1) {
+      res.status(400).json({ error: "A duração mínima das férias é de 1 dia." });
+      return;
+    }
+
+    const availableDays = Math.floor(vacationBalanceDays);
+    if (duration > availableDays) {
+      res.status(400).json({
+        error: `Saldo insuficiente para solicitar férias. Saldo disponível: ${availableDays} dias.`,
+      });
+      return;
+    }
+
     const vacation = await VacationModel.create({
       employeeId: id,
       startDate,
@@ -265,24 +313,70 @@ router.put(
       return;
     }
 
-    const vacation = await VacationModel.findOneAndUpdate(
-      { id },
-      { $set: { status } },
-      { new: true },
-    ).lean();
+    const vacation = await VacationModel.findOne({ id }).lean();
 
     if (!vacation) {
       res.status(404).json({ error: "Vacation not found" });
       return;
     }
 
+    const emp = await EmployeeModel.findOne({ id: vacation.employeeId }).lean();
+
+    if (!emp) {
+      res.status(404).json({ error: "Employee not found" });
+      return;
+    }
+
+    // BIZ-05 — revalidação de saldo no momento da aprovação.
+    // O pedido é recalculado "como se ainda não contasse": as férias já
+    // aprovadas (exceto esta) + os dias vendidos precisam caber no saldo
+    // acumulado. Reprovar não passa por validação de saldo.
+    if (status === "approved") {
+      const [employeeVacations, employeeSales] = await Promise.all([
+        VacationModel.find({ employeeId: emp.id }).lean(),
+        VacationSaleModel.find({ employeeId: emp.id }).lean(),
+      ]);
+
+      const daysSold = employeeSales.reduce((acc, s) => acc + s.daysSold, 0);
+      const daysEarned = calculateAccruedDays(emp.hireDate);
+      const approvedDays = sumApprovedVacationDays(employeeVacations, vacation.id);
+      const vacationDays = vacationDurationDays(
+        vacation.startDate,
+        vacation.endDate,
+      );
+
+      const canApprove = canApproveVacation({
+        vacationDays,
+        daysEarned,
+        approvedDays,
+        daysSold,
+      });
+
+      if (!canApprove) {
+        const availableDays = Math.floor(
+          Math.max(0, daysEarned - approvedDays - daysSold),
+        );
+        res.status(400).json({
+          error: `Saldo insuficiente para aprovar estas férias. Saldo disponível: ${availableDays} dias, mas o período solicitado tem ${vacationDays} dias.`,
+        });
+        return;
+      }
+    }
+
+    const updated = await VacationModel.findOneAndUpdate(
+      { id },
+      { $set: { status } },
+      { new: true },
+    ).lean();
+
+    if (!updated) {
+      res.status(404).json({ error: "Vacation not found" });
+      return;
+    }
+
     // Notify the employee about the approval/rejection
     try {
-      const emp = await EmployeeModel.findOne({ id: vacation.employeeId })
-        .select("userId id")
-        .lean();
-
-      if (emp?.userId) {
+      if (emp.userId) {
         const fmt = (d: string) =>
           new Date(d + "T12:00:00").toLocaleDateString("pt-BR", {
             day: "2-digit",
@@ -304,7 +398,7 @@ router.put(
       console.error("Failed to create employee notification:", err);
     }
 
-    res.json(serializeVacation(vacation));
+    res.json(serializeVacation(updated));
   },
 );
 
@@ -350,6 +444,25 @@ router.put(
 
     if (endDate < startDate) {
       res.status(400).json({ error: "A data de término deve ser após o início." });
+      return;
+    }
+
+    // The edited period must not overlap the other pending/approved vacations
+    // of this employee (the vacation being edited is excluded).
+    const otherVacations = await VacationModel.find({
+      employeeId: vacation.employeeId,
+      id: { $ne: id },
+      status: { $in: ["pending", "approved"] },
+    }).lean();
+
+    const conflicting = otherVacations.filter((v) =>
+      hasVacationOverlap({ startDate, endDate }, [v]),
+    );
+
+    if (conflicting.length > 0) {
+      res.status(400).json({
+        error: `O período solicitado conflita com outro pedido de férias já existente (${formatDateBr(conflicting[0].startDate)} a ${formatDateBr(conflicting[0].endDate)}). Escolha um período sem sobreposição.`,
+      });
       return;
     }
 
