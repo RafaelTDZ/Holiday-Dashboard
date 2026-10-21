@@ -279,11 +279,13 @@ Verificação realizada em 21/10/2026, após `git fetch origin --prune`.
 #### SEC-01 — Cadastro aberto e auto-registro como funcionário
 
 - **Severidade:** Crítica
+- **Status:** Parcialmente mitigado em 21/10/2026 (allowlist de domínio).
 - **Evidência:**
   - `artifacts/api-server/src/routes/auth.ts:74-112` — `POST /auth/register-local` cria conta para qualquer e-mail.
   - `artifacts/api-server/src/routes/me.ts:45-88` — `POST /me/employee` vincula a conta a um funcionário.
   - `artifacts/vacation-dashboard/src/components/registration-gate.tsx:49-90` — o gate conduz o usuário ao auto-registro.
   - `artifacts/api-server/src/routes/employees.ts:66-102` — qualquer autenticado lista todos os funcionários, saldos e férias.
+- **Mitigação aplicada (`45d8667`):** `ALLOWED_EMAIL_DOMAIN` (padrão `tdztrading.com.br`) bloqueia login, cadastro e recuperação de senha para e-mails fora do domínio. A allowlist por domínio **não** cobre convite por pessoa nem a visibilidade de `GET /employees` para não-gestores.
 - **Impacto:** qualquer pessoa com acesso à URL pública pode criar uma conta, registrar-se como funcionário e visualizar dados de RH de toda a equipe.
 - **Correção recomendada:**
   - Tornar o cadastro **por convite** ou restringir por domínio de e-mail (`ALLOWED_EMAIL_DOMAINS`).
@@ -817,7 +819,7 @@ Verificação realizada em 21/10/2026, após `git fetch origin --prune`.
 
 | ID | Área | Severidade | Esforço | Prioridade |
 |---|---|---|---|---|
-| SEC-01 | Cadastro aberto | Crítica | M | P0 |
+| SEC-01 | Cadastro aberto (allowlist de domínio aplicada) | Crítica | M | P0 |
 | SEC-02 | Exclusão de férias sem authz | Crítica | S | P0 |
 | SEC-03 | Sessão de usuário removido | Alta | S | P0 |
 | SEC-04 | TTL/revogação de sessão e reset | Alta | M | P0 |
@@ -880,7 +882,7 @@ Legenda de esforço: **S** = até 2h; **M** = 2–8h; **L** = 1–3 dias.
 
 - [ ] **SEC-02:** corrigir autorização de `DELETE /vacations/:id` e adicionar testes.
 - [ ] **SEC-03:** invalidar sessão quando o usuário não existir mais.
-- [ ] **SEC-01:** bloquear cadastro aberto/auto-registro conforme decisão da Fase 0.
+- [ ] **SEC-01:** concluir o bloqueio de cadastro (convite/allowlist por pessoa e visibilidade de `GET /employees`); a allowlist de domínio (`ALLOWED_EMAIL_DOMAIN`) já está aplicada.
 - [ ] **SEC-04:** adicionar TTL em `sessions.expire` e `password_reset_tokens.expiresAt`; hashear tokens; revogar sessões ao trocar/resetar senha.
 - [ ] **SEC-05:** adicionar rate limit nas rotas de autenticação e elevar a política de senha.
 - [ ] **SEC-09:** impedir seed de demonstração em produção.
@@ -1006,7 +1008,7 @@ Após as correções, validar em ambiente local e em preview da Vercel:
 
 | Tema | Opções | Recomendação | Decisão |
 |---|---|---|---|
-| Cadastro | Aberto / allowlist de domínio / convite / somente gestor | **Convite ou allowlist** | _a definir_ |
+| Cadastro | Aberto / allowlist de domínio / convite / somente gestor | **Allowlist de domínio + convite** | **Allowlist de domínio aplicada** (`ALLOWED_EMAIL_DOMAIN=tdztrading.com.br`); convite por pessoa ainda pendente |
 | Acúmulo de férias | Proporcional desde o dia 1 / somente após 1 ano | **Manter proporcional** (comportamento atual e documentado no README) | _a definir_ |
 | Venda de dias | 1/3 do período aquisitivo / 1/3 do saldo | **1/3 do período (10 dias)** com constante configurável | _a definir_ |
 | Gestor agenda para o time | Sim / não | **Sim, se houver necessidade operacional**; registrar autor | _a definir_ |
@@ -1118,3 +1120,4 @@ pnpm format:check
 | 21/10/2026 | Criação do documento com análise e plano inicial | Análise técnica |
 | 21/10/2026 | Inclusão da verificação de branches, worktrees e do achado `GIT-01` | Análise técnica |
 | 21/10/2026 | Merge fast-forward da branch v0 (`af913f7`), exclusão da branch remota e remoção do worktree `cosmic-panda`; documento atualizado | Análise técnica |
+| 21/10/2026 | Allowlist de domínio (`ALLOWED_EMAIL_DOMAIN`), login em duas etapas e login com Google Workspace; `SEC-01` parcialmente mitigado | Análise técnica |
