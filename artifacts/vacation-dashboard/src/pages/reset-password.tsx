@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Briefcase, Eye, EyeOff, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
 import { getApiBase, getAppBase } from "@/utils/api";
+import { getPasswordError } from "@/utils/password";
 
 export default function ResetPassword() {
   const loginUrl = getAppBase();
@@ -24,8 +25,9 @@ export default function ResetPassword() {
       setError("As senhas não conferem.");
       return;
     }
-    if (password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres.");
+    const passwordError = getPasswordError(password);
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
     setLoading(true);

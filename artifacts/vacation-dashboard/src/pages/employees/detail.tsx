@@ -81,6 +81,7 @@ import {
   KeyRound,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getPasswordError, PASSWORD_MESSAGES, PASSWORD_MIN_LENGTH } from "@/utils/password";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -114,7 +115,12 @@ const vacationSaleSchema = z.object({
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().optional(),
-  newPassword: z.string().min(6, "A nova senha deve ter no mínimo 6 caracteres"),
+  newPassword: z
+    .string()
+    .min(PASSWORD_MIN_LENGTH, PASSWORD_MESSAGES.tooShort)
+    .refine(val => getPasswordError(val) === null, {
+      message: PASSWORD_MESSAGES.complexity,
+    }),
   confirmPassword: z.string().min(1, "Confirme a nova senha"),
 }).refine(data => data.newPassword === data.confirmPassword, {
   message: "As senhas não coincidem",
@@ -910,7 +916,7 @@ export default function EmployeeDetail() {
                           <FormItem>
                             <FormLabel>Nova senha</FormLabel>
                             <FormControl>
-                              <Input type="password" placeholder="Mínimo 6 caracteres" data-testid="input-new-password" {...field} />
+                              <Input type="password" placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres`} data-testid="input-new-password" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

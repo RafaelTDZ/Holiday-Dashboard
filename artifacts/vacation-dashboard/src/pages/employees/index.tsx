@@ -52,6 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getPasswordError, PASSWORD_MESSAGES, PASSWORD_MIN_LENGTH } from "@/utils/password";
 
 const DEPARTMENTS = ["Comercial", "Operacional", "Financeiro", "RH"] as const;
 type Department = typeof DEPARTMENTS[number];
@@ -62,7 +63,11 @@ const createEmployeeSchema = z.object({
   department: z.enum(DEPARTMENTS),
   hireDate: z.string().refine(val => !isNaN(Date.parse(val)), "Data inválida"),
   email: z.string().email("E-mail inválido"),
-  password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres"),
+  password: z.string()
+    .min(PASSWORD_MIN_LENGTH, PASSWORD_MESSAGES.tooShort)
+    .refine(val => getPasswordError(val) === null, {
+      message: PASSWORD_MESSAGES.complexity,
+    }),
 });
 
 export default function EmployeesList() {
@@ -276,7 +281,7 @@ export default function EmployeesList() {
                           <FormControl>
                             <div className="relative">
                               <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                              <Input type="password" placeholder="Mínimo 6 caracteres" className="pl-9" {...field} data-testid="input-password" />
+                              <Input type="password" placeholder={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres`} className="pl-9" {...field} data-testid="input-password" />
                             </div>
                           </FormControl>
                           <FormMessage />

@@ -623,7 +623,7 @@ components:
           format: email
         password:
           type: string
-          minLength: 6
+          minLength: 10
     EmailBody:
       type: object
       required: [email]
@@ -640,7 +640,7 @@ components:
           minLength: 1
         password:
           type: string
-          minLength: 6
+          minLength: 10
     OkEnvelope:
       type: object
       required: [ok]
@@ -797,7 +797,7 @@ components:
           format: email
         password:
           type: string
-          minLength: 6
+          minLength: 10
 
     UpdateEmployeeBody:
       type: object

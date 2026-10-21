@@ -70,7 +70,7 @@ export const CompleteGoogleLoginQueryParams = zod.object({
 /**
  * @summary Create an account with e-mail and password
  */
-export const registerLocalUserBodyPasswordMin = 6;
+export const registerLocalUserBodyPasswordMin = 10;
 
 export const RegisterLocalUserBody = zod.object({
   email: zod.string().email(),
@@ -84,7 +84,7 @@ export const RegisterLocalUserResponse = zod.object({
 /**
  * @summary Sign in with e-mail and password
  */
-export const loginLocalUserBodyPasswordMin = 6;
+export const loginLocalUserBodyPasswordMin = 10;
 
 export const LoginLocalUserBody = zod.object({
   email: zod.string().email(),
@@ -110,7 +110,7 @@ export const RequestPasswordResetResponse = zod.object({
  * @summary Set a new password using a reset token
  */
 
-export const resetPasswordBodyPasswordMin = 6;
+export const resetPasswordBodyPasswordMin = 10;
 
 export const ResetPasswordBody = zod.object({
   token: zod.string().min(1),
@@ -151,7 +151,7 @@ export const ListEmployeesResponse = zod.object({
  * @summary Create a new employee
  */
 
-export const createEmployeeBodyPasswordMin = 6;
+export const createEmployeeBodyPasswordMin = 10;
 
 export const CreateEmployeeBody = zod.object({
   name: zod.string().min(1),

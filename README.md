@@ -157,7 +157,7 @@ Configure no painel da Vercel (Production e Preview):
 
 `ADMIN_EMAIL`/`ADMIN_PASSWORD` criam (ou promovem) o coordinator no primeiro
 acesso. Com `SEED_DEMO_DATA=true` o conjunto de demonstração também é criado
-de forma idempotente — os demais usuários usam a senha `senha123`.
+de forma idempotente — os demais usuários usam a senha `Férias@2026`.
 
 > Restrição de acesso: com `ALLOWED_EMAIL_DOMAIN=tdztrading.com.br`, apenas e-mails desse domínio podem fazer login, cadastro ou solicitar redefinição de senha. Se precisar abrir para testes, defina `ALLOWED_EMAIL_DOMAIN=*`.
 

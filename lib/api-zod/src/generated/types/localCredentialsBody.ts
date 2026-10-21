@@ -8,6 +8,6 @@
 
 export interface LocalCredentialsBody {
   email: string;
-  /** @minLength 6 */
+  /** @minLength 10 */
   password: string;
 }

@@ -16,7 +16,11 @@ import {
   CounterModel,
 } from "./index";
 
-export const DEMO_PASSWORD = "senha123";
+/**
+ * Password used by the demo accounts. It satisfies the password policy
+ * enforced by the API (10 characters, 3 of 4 character groups).
+ */
+export const DEMO_PASSWORD = "Férias@2026";
 
 const employees = [
   {

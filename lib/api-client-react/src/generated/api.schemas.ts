@@ -33,7 +33,7 @@ export interface AuthProviders {
 
 export interface LocalCredentialsBody {
   email: string;
-  /** @minLength 6 */
+  /** @minLength 10 */
   password: string;
 }
 
@@ -44,7 +44,7 @@ export interface EmailBody {
 export interface ResetPasswordBody {
   /** @minLength 1 */
   token: string;
-  /** @minLength 6 */
+  /** @minLength 10 */
   password: string;
 }
 
@@ -148,7 +148,7 @@ export interface CreateEmployeeBody {
   hireDate: string;
   /** @minLength 1 */
   email: string;
-  /** @minLength 6 */
+  /** @minLength 10 */
   password: string;
 }
 
