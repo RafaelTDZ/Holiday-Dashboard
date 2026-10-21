@@ -7,11 +7,16 @@ import {
   useCreateVacation,
   useDeleteVacation,
   useUpdateVacationStatus,
+  useUpdateVacation,
+  useUpdateEmployeePassword,
+  useCreateVacationSale,
+  useDeleteVacationSale,
   getGetEmployeeQueryKey,
   getListEmployeesQueryKey,
-  getGetDashboardSummaryQueryKey
+  getGetDashboardSummaryQueryKey,
+  getListVacationsQueryOptions
 } from "@workspace/api-client-react";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -159,6 +164,10 @@ export default function EmployeeDetail() {
   const createVacation = useCreateVacation();
   const deleteVacation = useDeleteVacation();
   const updateVacationStatus = useUpdateVacationStatus();
+  const updateVacation = useUpdateVacation();
+  const updateEmployeePassword = useUpdateEmployeePassword();
+  const createVacationSale = useCreateVacationSale();
+  const deleteVacationSale = useDeleteVacationSale();
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isVacationOpen, setIsVacationOpen] = useState(false);
@@ -206,77 +215,69 @@ export default function EmployeeDetail() {
     defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
   });
 
-  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  const onSaleSubmit = (values: z.infer<typeof vacationSaleSchema>) => {
+    createVacationSale.mutate(
+      {
+        id: employeeId,
+        data: {
+          daysSold: Number(values.daysSold),
+          saleDate: values.saleDate,
+          notes: values.notes || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employeeId) });
+          queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          toast({ title: "Venda registrada", description: "Os dias foram descontados do saldo." });
+          setIsSaleOpen(false);
+          saleForm.reset({ daysSold: 1, saleDate: new Date().toISOString().split("T")[0], notes: "" });
+        },
+        onError: (err) => {
+          toast({ variant: "destructive", title: "Erro ao registrar venda", description: err.data?.error ?? err.message });
+        },
+      },
+    );
+  };
 
-  const createSaleMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof vacationSaleSchema>) => {
-      const res = await fetch(`${base}/api/employees/${employeeId}/vacation-sales`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...values, daysSold: Number(values.daysSold) }),
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro ao registrar venda");
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employeeId) });
-      queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-      toast({ title: "Venda registrada", description: "Os dias foram descontados do saldo." });
-      setIsSaleOpen(false);
-      saleForm.reset({ daysSold: 1, saleDate: new Date().toISOString().split("T")[0], notes: "" });
-    },
-    onError: (err: Error) => {
-      toast({ variant: "destructive", title: "Erro ao registrar venda", description: err.message });
-    },
-  });
+  const onDeleteSale = (saleId: number) => {
+    deleteVacationSale.mutate(
+      { id: employeeId, saleId },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employeeId) });
+          queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
+          toast({ title: "Venda removida", description: "Os dias foram devolvidos ao saldo." });
+        },
+        onError: (err) => {
+          toast({ variant: "destructive", title: "Erro", description: err.data?.error ?? err.message });
+        },
+      },
+    );
+  };
 
-  const deleteSaleMutation = useMutation({
-    mutationFn: async (saleId: number) => {
-      const res = await fetch(`${base}/api/employees/${employeeId}/vacation-sales/${saleId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "Erro ao excluir");
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employeeId) });
-      queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
-      toast({ title: "Venda removida", description: "Os dias foram devolvidos ao saldo." });
-    },
-    onError: (err: Error) => {
-      toast({ variant: "destructive", title: "Erro", description: err.message });
-    },
-  });
-
-  const changePasswordMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof changePasswordSchema>) => {
-      const body: Record<string, string> = { newPassword: values.newPassword };
-      if (values.currentPassword) body.currentPassword = values.currentPassword;
-      const res = await fetch(`${base}/api/employees/${employeeId}/password`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro ao alterar senha");
-      return data;
-    },
-    onSuccess: () => {
-      toast({ title: "Senha alterada", description: "A senha foi alterada com sucesso." });
-      passwordForm.reset({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setIsChangingPassword(false);
-    },
-    onError: (err: Error) => {
-      toast({ variant: "destructive", title: "Erro ao alterar senha", description: err.message });
-    },
-  });
+  const onChangePassword = (values: z.infer<typeof changePasswordSchema>) => {
+    updateEmployeePassword.mutate(
+      {
+        id: employeeId,
+        data: {
+          newPassword: values.newPassword,
+          ...(values.currentPassword ? { currentPassword: values.currentPassword } : {}),
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Senha alterada", description: "A senha foi alterada com sucesso." });
+          passwordForm.reset({ currentPassword: "", newPassword: "", confirmPassword: "" });
+          setIsChangingPassword(false);
+        },
+        onError: (err) => {
+          toast({ variant: "destructive", title: "Erro ao alterar senha", description: err.data?.error ?? err.message });
+        },
+      },
+    );
+  };
 
   if (employee && editForm.getValues("name") === "" && !isEditOpen) {
     editForm.reset({
@@ -324,34 +325,31 @@ export default function EmployeeDetail() {
     defaultValues: { startDate: "", endDate: "", notes: "" },
   });
 
-  const updateVacationMutation = useMutation({
-    mutationFn: async (values: { id: number; startDate: string; endDate: string; notes?: string }) => {
-      const res = await fetch(`/api/vacations/${values.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startDate: values.startDate, endDate: values.endDate, notes: values.notes ?? null }),
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro ao atualizar férias");
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employeeId) });
-      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-      toast({ title: "Férias atualizadas", description: "O período foi alterado com sucesso." });
-      setIsEditVacationOpen(false);
-      setEditingVacationId(null);
-      editVacationForm.reset();
-    },
-    onError: (err: Error) => {
-      toast({ variant: "destructive", title: "Erro ao atualizar férias", description: err.message });
-    },
-  });
-
   const onEditVacationSubmit = (values: z.infer<typeof createVacationSchema>) => {
     if (!editingVacationId) return;
-    updateVacationMutation.mutate({ id: editingVacationId, ...values });
+    updateVacation.mutate(
+      {
+        id: editingVacationId,
+        data: {
+          startDate: values.startDate,
+          endDate: values.endDate,
+          notes: values.notes ?? null,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetEmployeeQueryKey(employeeId) });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          toast({ title: "Férias atualizadas", description: "O período foi alterado com sucesso." });
+          setIsEditVacationOpen(false);
+          setEditingVacationId(null);
+          editVacationForm.reset();
+        },
+        onError: (err) => {
+          toast({ variant: "destructive", title: "Erro ao atualizar férias", description: err.data?.error ?? err.message });
+        },
+      },
+    );
   };
 
   const handleDeleteEmployee = () => {
@@ -403,10 +401,10 @@ export default function EmployeeDetail() {
   const checkAndApprove = async (vacationId: number, startDate: string, endDate: string) => {
     setApprovalLoading(true);
     try {
-      const res = await fetch(`${base}/api/vacations?status=approved`, { credentials: "include" });
-      const data = await res.json();
-      const approved: Array<{ id: number; employeeId: number; employeeName: string; startDate: string; endDate: string }> = data.vacations ?? [];
-      const conflicts = approved
+      const { vacations } = await queryClient.fetchQuery(
+        getListVacationsQueryOptions({ status: "approved" }),
+      );
+      const conflicts = vacations
         .filter((v) => v.employeeId !== employeeId && v.startDate <= endDate && v.endDate >= startDate)
         .map((v) => ({ employeeName: v.employeeName ?? "Funcionário", startDate: v.startDate, endDate: v.endDate }));
       if (conflicts.length > 0) {
@@ -607,19 +605,19 @@ export default function EmployeeDetail() {
 
         {/* Vacations Content */}
         <div className="md:col-span-2 space-y-6">
-          {!employee.isOnVacation && (employee.vacationBalanceDays >= 60 || ((employee as any).daysUntilNextVacation <= 30 && employee.vacationBalanceDays >= 30)) && (
+          {!employee.isOnVacation && (employee.vacationBalanceDays >= 60 || (employee.daysUntilNextVacation <= 30 && employee.vacationBalanceDays >= 30)) && (
             <Alert className="border-red-500 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400">
               <Siren className="h-4 w-4 text-red-500" />
               <AlertTitle className="font-bold">Férias Urgentes</AlertTitle>
               <AlertDescription>
                 {employee.vacationBalanceDays >= 60
                   ? <>{employee.name} acumulou <strong>{employee.vacationBalanceDays.toFixed(0)} dias</strong> de saldo. Agendamento imediato é obrigatório.</>
-                  : <>{employee.name} tem <strong>{employee.vacationBalanceDays.toFixed(0)} dias</strong> de saldo e o próximo período fecha em <strong>{(employee as any).daysUntilNextVacation} dias</strong>. Agende as férias imediatamente.</>
+                  : <>{employee.name} tem <strong>{employee.vacationBalanceDays.toFixed(0)} dias</strong> de saldo e o próximo acúmulo de férias ocorre em <strong>{employee.daysUntilNextVacation} dias</strong>. Agende as férias imediatamente.</>
                 }
               </AlertDescription>
             </Alert>
           )}
-          {!employee.isOnVacation && employee.vacationBalanceDays > 30 && !(employee.vacationBalanceDays >= 60 || ((employee as any).daysUntilNextVacation <= 30 && employee.vacationBalanceDays >= 30)) && (
+          {!employee.isOnVacation && employee.vacationBalanceDays > 30 && !(employee.vacationBalanceDays >= 60 || (employee.daysUntilNextVacation <= 30 && employee.vacationBalanceDays >= 30)) && (
             <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
               <AlertTitle className="font-semibold">Atenção: Saldo de Férias Elevado</AlertTitle>
@@ -891,7 +889,7 @@ export default function EmployeeDetail() {
                 <CardContent>
                   <Form {...passwordForm}>
                     <form
-                      onSubmit={passwordForm.handleSubmit((v) => changePasswordMutation.mutate(v))}
+                      onSubmit={passwordForm.handleSubmit(onChangePassword)}
                       className="space-y-4"
                     >
                       {(!isManager || isOwnProfile) && (
@@ -946,8 +944,8 @@ export default function EmployeeDetail() {
                         >
                           Cancelar
                         </Button>
-                        <Button type="submit" disabled={changePasswordMutation.isPending} data-testid="button-submit-password">
-                          {changePasswordMutation.isPending ? "Salvando..." : "Salvar nova senha"}
+                        <Button type="submit" disabled={updateEmployeePassword.isPending} data-testid="button-submit-password">
+                          {updateEmployeePassword.isPending ? "Salvando..." : "Salvar nova senha"}
                         </Button>
                       </div>
                     </form>
@@ -970,13 +968,13 @@ export default function EmployeeDetail() {
                 </div>
               </CardHeader>
               <CardContent>
-                {!employee.vacationSales || (employee.vacationSales as any[]).length === 0 ? (
+                {!employee.vacationSales || employee.vacationSales.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-sm">
                     Nenhuma venda registrada para este funcionário.
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {(employee.vacationSales as any[]).map((sale: any) => (
+                    {employee.vacationSales.map((sale) => (
                       <div key={sale.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors group">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
@@ -1010,7 +1008,7 @@ export default function EmployeeDetail() {
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => deleteSaleMutation.mutate(sale.id)}
+                                onClick={() => onDeleteSale(sale.id)}
                                 className="bg-destructive text-destructive-foreground"
                               >
                                 Remover
@@ -1023,7 +1021,7 @@ export default function EmployeeDetail() {
                     <div className="mt-4 p-3 rounded-lg bg-muted/50 flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Total vendido</span>
                       <span className="font-bold text-amber-600 dark:text-amber-400">
-                        {(employee.vacationSales as any[]).reduce((acc: number, s: any) => acc + s.daysSold, 0)} dias
+                        {employee.vacationSales.reduce((acc, s) => acc + s.daysSold, 0)} dias
                       </span>
                     </div>
                   </div>
@@ -1080,7 +1078,7 @@ export default function EmployeeDetail() {
             />
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setIsEditVacationOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={updateVacationMutation.isPending} data-testid="button-save-vacation-edit">
+              <Button type="submit" disabled={updateVacation.isPending} data-testid="button-save-vacation-edit">
                 Salvar alterações
               </Button>
             </DialogFooter>
@@ -1149,7 +1147,7 @@ export default function EmployeeDetail() {
           </DialogDescription>
         </DialogHeader>
         <Form {...saleForm}>
-          <form onSubmit={saleForm.handleSubmit((v) => createSaleMutation.mutate(v))} className="space-y-4 pt-2">
+          <form onSubmit={saleForm.handleSubmit(onSaleSubmit)} className="space-y-4 pt-2">
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={saleForm.control}
@@ -1195,11 +1193,11 @@ export default function EmployeeDetail() {
               <Button type="button" variant="outline" onClick={() => setIsSaleOpen(false)}>Cancelar</Button>
               <Button
                 type="submit"
-                disabled={createSaleMutation.isPending}
+                disabled={createVacationSale.isPending}
                 className="bg-amber-500 hover:bg-amber-600 text-white"
                 data-testid="button-confirm-sale"
               >
-                {createSaleMutation.isPending ? "Registrando..." : "Confirmar Venda"}
+                {createVacationSale.isPending ? "Registrando..." : "Confirmar Venda"}
               </Button>
             </DialogFooter>
           </form>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Bell, Check, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,65 +9,78 @@ import {
 import { Link } from "wouter";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { getApiBase } from "@/utils/api";
-
-interface Notif {
-  id: number;
-  message: string;
-  read: boolean;
-  vacationId: number | null;
-  employeeId: number | null;
-  createdAt: string;
-}
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useListNotifications,
+  useMarkAllNotificationsAsRead,
+  useMarkNotificationAsRead,
+  getListNotificationsQueryKey,
+} from "@workspace/api-client-react";
+import type { ListNotificationsResponse } from "@workspace/api-client-react";
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notif[]>([]);
+  const queryClient = useQueryClient();
 
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const res = await fetch(`${getApiBase()}/notifications`, { credentials: "include" });
-      if (!res.ok) return;
-      const data = await res.json();
-      setNotifications(data.notifications ?? []);
-    } catch {
-      // silent
-    }
-  }, []);
+  // The generated client already applies the base path of the deploy to the
+  // API URL.
+  const { data, refetch } = useListNotifications({
+    query: {
+      queryKey: getListNotificationsQueryKey(),
+      refetchInterval: 30_000,
+    },
+  });
 
-  useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30_000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
+  const markAllRead = useMarkAllNotificationsAsRead();
+  const markRead = useMarkNotificationAsRead();
 
-  // Refresh when popover opens
-  useEffect(() => {
-    if (open) fetchNotifications();
-  }, [open, fetchNotifications]);
+  const notifications = data?.notifications ?? [];
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAllRead = async () => {
-    await fetch(`${getApiBase()}/notifications/read-all`, {
-      method: "PUT",
-      credentials: "include",
-    });
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    // Refresh when the popover opens
+    if (nextOpen) refetch();
   };
 
-  const markRead = async (id: number) => {
-    await fetch(`${getApiBase()}/notifications/${id}/read`, {
-      method: "PUT",
-      credentials: "include",
+  const markAllAsRead = () => {
+    markAllRead.mutate(undefined, {
+      onSuccess: () => {
+        queryClient.setQueryData<ListNotificationsResponse>(
+          getListNotificationsQueryKey(),
+          (old) =>
+            old
+              ? { notifications: old.notifications.map((n) => ({ ...n, read: true })) }
+              : old,
+        );
+      },
     });
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+  };
+
+  const markAsRead = (id: number) => {
+    markRead.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          queryClient.setQueryData<ListNotificationsResponse>(
+            getListNotificationsQueryKey(),
+            (old) =>
+              old
+                ? {
+                    notifications: old.notifications.map((n) =>
+                      n.id === id ? { ...n, read: true } : n,
+                    ),
+                  }
+                : old,
+          );
+        },
+      },
     );
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
@@ -90,7 +103,7 @@ export function NotificationBell() {
           <h3 className="font-semibold text-sm">Notificações</h3>
           {unreadCount > 0 && (
             <button
-              onClick={markAllRead}
+              onClick={markAllAsRead}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
               <Check className="h-3 w-3" />
@@ -113,7 +126,7 @@ export function NotificationBell() {
                   notif.read ? "opacity-60" : "bg-blue-50/60 dark:bg-blue-950/20"
                 }`}
                 onClick={() => {
-                  if (!notif.read) markRead(notif.id);
+                  if (!notif.read) markAsRead(notif.id);
                 }}
               >
                 <div className="mt-1 flex-shrink-0">
@@ -136,7 +149,7 @@ export function NotificationBell() {
                       href={`/employees/${notif.employeeId}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (!notif.read) markRead(notif.id);
+                        if (!notif.read) markAsRead(notif.id);
                         setOpen(false);
                       }}
                       className="mt-1 text-[11px] text-primary hover:underline flex items-center gap-1 w-fit"

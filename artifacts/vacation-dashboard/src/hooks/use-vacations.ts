@@ -1,6 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useListVacations, getListVacationsQueryKey } from "@workspace/api-client-react";
 import { useMemo, useCallback } from "react";
-import { getApiBase } from "@/utils/api";
 
 export interface VacationEntry {
   id: number;
@@ -51,17 +50,6 @@ export function datesOverlap(start: string, end: string, dayStr: string): boolea
   return dayStr >= start && dayStr <= end;
 }
 
-async function fetchVacations(status?: string): Promise<VacationEntry[]> {
-  const url = status 
-    ? `${getApiBase()}/vacations?status=${status}` 
-    : `${getApiBase()}/vacations`;
-  
-  const res = await fetch(url, { credentials: "include" });
-  if (!res.ok) throw new Error("Erro ao carregar ferias");
-  const data = await res.json();
-  return data.vacations ?? [];
-}
-
 interface UseVacationsOptions {
   status?: "approved" | "pending" | "rejected";
   enabled?: boolean;
@@ -70,17 +58,26 @@ interface UseVacationsOptions {
 /**
  * Hook para buscar e gerenciar ferias com React Query.
  * Centraliza logica de fetch, cores e filtragem.
+ *
+ * O request é feito pelo client gerado (orval), que já aplica o base path
+ * do deploy na URL da API.
  */
 export function useVacations(options: UseVacationsOptions = {}) {
   const { status = "approved", enabled = true } = options;
 
-  const { data: vacations = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["vacations", status],
-    queryFn: () => fetchVacations(status),
-    enabled,
-    staleTime: 30_000, // 30 segundos
-    refetchOnWindowFocus: true,
-  });
+  const { data, isLoading, error, refetch } = useListVacations(
+    { status },
+    {
+      query: {
+        queryKey: getListVacationsQueryKey({ status }),
+        enabled,
+        staleTime: 30_000, // 30 segundos
+        refetchOnWindowFocus: true,
+      },
+    },
+  );
+
+  const vacations: VacationEntry[] = useMemo(() => data?.vacations ?? [], [data]);
 
   // Memoiza lista de funcionarios unicos
   const uniqueEmployees = useMemo(() => {
@@ -88,7 +85,7 @@ export function useVacations(options: UseVacationsOptions = {}) {
       new Map(
         vacations
           .filter((v) => v.employeeName)
-          .map((v) => [v.employeeId, v.employeeName!])
+          .map((v) => [v.employeeId, v.employeeName!] as const)
       ).entries()
     ).map(([id, name]) => ({ id, name }));
   }, [vacations]);
@@ -100,9 +97,9 @@ export function useVacations(options: UseVacationsOptions = {}) {
   }, [uniqueEmployees]);
 
   // Funcao para obter ferias em um dia especifico
-  const vacationsOnDay = useCallback((dateStr: string) => {
+  const vacationsOnDay = useCallback((dayStr: string) => {
     return vacations.filter(
-      (v) => v.status === "approved" && datesOverlap(v.startDate, v.endDate, dateStr)
+      (v) => v.status === "approved" && datesOverlap(v.startDate, v.endDate, dayStr)
     );
   }, [vacations]);
 

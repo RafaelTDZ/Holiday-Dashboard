@@ -1,15 +1,17 @@
 import { useState } from "react";
+import { useRequestPasswordReset } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Briefcase, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
-import { getApiBase, getAppBase } from "@/utils/api";
+import { getAppBase, getApiErrorMessage, isNetworkError } from "@/utils/api";
 import { getAllowedEmailDomain, getCompanyEmailError, isAllowedCompanyEmail } from "@/utils/email";
 import * as z from "zod";
 
 export default function ForgotPassword() {
   const loginUrl = getAppBase();
+  const requestPasswordReset = useRequestPasswordReset();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -18,33 +20,28 @@ export default function ForgotPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    const domain = getAllowedEmailDomain();
+    const emailSchema = z.string().email().refine((val) => !domain || isAllowedCompanyEmail(val), {
+      message: getCompanyEmailError(),
+    });
+    const result = emailSchema.safeParse(email);
+    if (!result.success) {
+      setError(result.error.errors[0].message);
+      return;
+    }
+
     setLoading(true);
     try {
-      const domain = getAllowedEmailDomain();
-      const emailSchema = z.string().email().refine((val) => !domain || isAllowedCompanyEmail(val), {
-        message: getCompanyEmailError(),
-      });
-      const result = emailSchema.safeParse(email);
-      if (!result.success) {
-        setError(result.error.errors[0].message);
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch(`${getApiBase()}/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error ?? "Ocorreu um erro. Tente novamente.");
-      } else {
-        setSent(true);
-      }
-    } catch {
-      setError("Não foi possível conectar ao servidor.");
+      await requestPasswordReset.mutateAsync({ data: { email } });
+      setSent(true);
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err) ??
+          (isNetworkError(err)
+            ? "Não foi possível conectar ao servidor."
+            : "Ocorreu um erro. Tente novamente."),
+      );
     } finally {
       setLoading(false);
     }

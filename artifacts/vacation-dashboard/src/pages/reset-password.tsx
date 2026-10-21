@@ -1,15 +1,17 @@
 import { useState } from "react";
+import { useResetPassword } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Briefcase, Eye, EyeOff, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
-import { getApiBase, getAppBase } from "@/utils/api";
+import { getAppBase, getApiErrorMessage, isNetworkError } from "@/utils/api";
 import { getPasswordError } from "@/utils/password";
 
 export default function ResetPassword() {
   const loginUrl = getAppBase();
   const token = new URLSearchParams(window.location.search).get("token") ?? "";
+  const resetPasswordMutation = useResetPassword();
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -32,20 +34,15 @@ export default function ResetPassword() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${getApiBase()}/auth/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Ocorreu um erro. Tente novamente.");
-      } else {
-        setDone(true);
-      }
-    } catch {
-      setError("Não foi possível conectar ao servidor.");
+      await resetPasswordMutation.mutateAsync({ data: { token, password } });
+      setDone(true);
+    } catch (err) {
+      setError(
+        getApiErrorMessage(err) ??
+          (isNetworkError(err)
+            ? "Não foi possível conectar ao servidor."
+            : "Ocorreu um erro. Tente novamente."),
+      );
     } finally {
       setLoading(false);
     }

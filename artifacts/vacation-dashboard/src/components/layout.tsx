@@ -1,5 +1,10 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@workspace/auth-web";
+// Importa (efeito colateral) a configuração do client HTTP gerado: ele passa
+// a prefixar as URLs "/api/..." com o base path do deploy. Como o layout é
+// carregado na inicialização do app, toda requisição já sai com o base path
+// correto.
+import "@/utils/api";
 import { 
   Sidebar, 
   SidebarContent, 
