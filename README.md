@@ -161,6 +161,26 @@ de forma idempotente — os demais usuários usam a senha `Férias@2026`.
 
 > Restrição de acesso: com `ALLOWED_EMAIL_DOMAIN=tdztrading.com.br`, apenas e-mails desse domínio podem fazer login, cadastro ou solicitar redefinição de senha. Se precisar abrir para testes, defina `ALLOWED_EMAIL_DOMAIN=*`.
 
+### Perfis de acesso
+
+- **Empregado** (base): é o perfil de quem se cadastra. Todo mundo entra como
+  empregado e as rotas de gestão (criar/editar/excluir funcionário, aprovar
+  férias, registrar venda de dias) ficam bloqueadas.
+- **Coordenador** (`isManager`): é concedido pelo administrador. A conta
+  configurada em `ADMIN_EMAIL` é criada/promovida no primeiro acesso da API; as
+  demais são promovidas manualmente no banco:
+
+```javascript
+// no shell do MongoDB Atlas (ou mongosh local)
+db.users.updateOne(
+  { email: "coordenador@tdztrading.com.br" },
+  { $set: { isManager: true } }
+);
+```
+
+A mudança vale na requisição seguinte: o flag é lido do banco a cada request,
+sem cache na sessão.
+
 ### Login com Google (Workspace)
 
 Para exibir o botão "Entrar com Google" no login:

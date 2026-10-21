@@ -192,7 +192,10 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
         lastName: profile.lastName,
         profileImageUrl: profile.profileImageUrl,
       },
-      $setOnInsert: { email: profile.email },
+      // A Google account always starts as a plain employee: the manager flag
+      // is only granted by the bootstrap (`ADMIN_EMAIL`) or by an explicit
+      // promotion in the database.
+      $setOnInsert: { email: profile.email, isManager: false },
     },
     { upsert: true, new: true },
   );
@@ -244,9 +247,13 @@ router.post(
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
+    // Everyone who signs up starts as a plain employee. The manager flag is
+    // only granted by the bootstrap (`ADMIN_EMAIL`) or by an explicit
+    // promotion in the database — it is never derived from the request.
     const user = await UserModel.create({
       email: normalizedEmail,
       passwordHash,
+      isManager: false,
     });
 
     const sessionData: SessionData = {

@@ -279,13 +279,15 @@ Verificação realizada em 21/10/2026, após `git fetch origin --prune`.
 #### SEC-01 — Cadastro aberto e auto-registro como funcionário
 
 - **Severidade:** Crítica
-- **Status:** Parcialmente mitigado em 21/10/2026 (allowlist de domínio).
+- **Status:** Resolvido por decisão de produto em 21/10/2026 (acesso aberto, todo mundo entra como **empregado**).
+- **Decisão:** o cadastro aberto foi **aceito** — qualquer pessoa com e-mail do domínio pode criar a conta e se auto-registrar como funcionário. A classificação base é **empregado** (`isManager = false`); o flag de gestor só é concedido pelo bootstrap (`ADMIN_EMAIL`) ou por promoção explícita no banco, nunca a partir da requisição.
 - **Evidência:**
   - `artifacts/api-server/src/routes/auth.ts:74-112` — `POST /auth/register-local` cria conta para qualquer e-mail.
   - `artifacts/api-server/src/routes/me.ts:45-88` — `POST /me/employee` vincula a conta a um funcionário.
   - `artifacts/vacation-dashboard/src/components/registration-gate.tsx:49-90` — o gate conduz o usuário ao auto-registro.
   - `artifacts/api-server/src/routes/employees.ts:66-102` — qualquer autenticado lista todos os funcionários, saldos e férias.
 - **Mitigação aplicada (`45d8667`):** `ALLOWED_EMAIL_DOMAIN` (padrão `tdztrading.com.br`) bloqueia login, cadastro e recuperação de senha para e-mails fora do domínio. A allowlist por domínio **não** cobre convite por pessoa nem a visibilidade de `GET /employees` para não-gestores.
+- **Garantias no código:** `isManager: false` explícito na criação local (`routes/auth.ts`) e no *upsert* do login Google; `RegisterEmployeeBody` não aceita `isManager`; as rotas de gestão (`POST/PUT/DELETE /employees`, aprovação de férias, vendas) exigem `req.user.isManager`, lido do banco a cada requisição.
 - **Impacto:** qualquer pessoa com acesso à URL pública pode criar uma conta, registrar-se como funcionário e visualizar dados de RH de toda a equipe.
 - **Correção recomendada:**
   - Tornar o cadastro **por convite** ou restringir por domínio de e-mail (`ALLOWED_EMAIL_DOMAINS`).
@@ -819,7 +821,7 @@ Verificação realizada em 21/10/2026, após `git fetch origin --prune`.
 
 | ID | Área | Severidade | Esforço | Prioridade |
 |---|---|---|---|---|
-| SEC-01 | Cadastro aberto (allowlist de domínio aplicada) | Crítica | M | P0 |
+| SEC-01 | Cadastro aberto (decidido: todo mundo entra como empregado) | Crítica | M | Resolvido |
 | SEC-02 | Exclusão de férias sem authz | Crítica | S | Resolvido |
 | SEC-03 | Sessão de usuário removido | Alta | S | Resolvido |
 | SEC-04 | TTL/revogação de sessão e reset | Alta | M | Resolvido |
@@ -863,7 +865,7 @@ Legenda de esforço: **S** = até 2h; **M** = 2–8h; **L** = 1–3 dias.
 
 ### Fase 0 — Decisões e alinhamento (0,5 dia)
 
-- [ ] Confirmar a política de cadastro (convite, allowlist ou aberto).
+- [x] Confirmar a política de cadastro (convite, allowlist ou aberto). — **Decidido: aberto, todo mundo como empregado.**
 - [ ] Confirmar a regra de acúmulo de férias (proporcional vs. anual).
 - [ ] Confirmar a regra de venda (1/3 do período ou 1/3 do saldo).
 - [ ] Confirmar se gestor pode agendar/editar férias para o time.
@@ -882,7 +884,7 @@ Legenda de esforço: **S** = até 2h; **M** = 2–8h; **L** = 1–3 dias.
 
 - [x] **SEC-02:** corrigir autorização de `DELETE /vacations/:id` e adicionar testes. — `3260e8d`
 - [x] **SEC-03:** invalidar sessão quando o usuário não existir mais. — `362753b`
-- [ ] **SEC-01:** concluir o bloqueio de cadastro (convite/allowlist por pessoa e visibilidade de `GET /employees`); a allowlist de domínio (`ALLOWED_EMAIL_DOMAIN`) já está aplicada.
+- [x] **SEC-01:** política de cadastro definida — acesso aberto (e-mail do domínio), todo mundo entra com a classificação base **empregado**; o flag de gestor é concedido pelo administrador depois (bootstrap `ADMIN_EMAIL` ou promoção no banco). A allowlist de domínio (`ALLOWED_EMAIL_DOMAIN`) já está aplicada.
 - [x] **SEC-04:** adicionar TTL em `sessions.expire` e `password_reset_tokens.expiresAt`; hashear tokens; revogar sessões ao trocar/resetar senha. — `90ce077`
 - [x] **SEC-05:** adicionar rate limit nas rotas de autenticação e elevar a política de senha. — `b0a1f0c`
 - [x] **SEC-09:** impedir seed de demonstração em produção. — `ebe4982`
@@ -1015,7 +1017,7 @@ Após as correções, validar em ambiente local e em preview da Vercel:
 
 | Tema | Opções | Recomendação | Decisão |
 |---|---|---|---|
-| Cadastro | Aberto / allowlist de domínio / convite / somente gestor | **Allowlist de domínio + convite** | **Allowlist de domínio aplicada** (`ALLOWED_EMAIL_DOMAIN=tdztrading.com.br`); convite por pessoa ainda pendente |
+| Cadastro | Aberto / allowlist de domínio / convite / somente gestor | **Acesso aberto com classificação base "empregado"** | **Decidido em 21/10/2026**: qualquer e-mail do domínio entra; `isManager` só pelo admin (`ADMIN_EMAIL` ou promoção) |
 | Acúmulo de férias | Proporcional desde o dia 1 / somente após 1 ano | **Manter proporcional** (comportamento atual e documentado no README) | _a definir_ |
 | Venda de dias | 1/3 do período aquisitivo / 1/3 do saldo | **1/3 do período (10 dias)** com constante configurável | _a definir_ |
 | Gestor agenda para o time | Sim / não | **Sim, se houver necessidade operacional**; registrar autor | _a definir_ |
@@ -1129,3 +1131,4 @@ pnpm format:check
 | 21/10/2026 | Merge fast-forward da branch v0 (`af913f7`), exclusão da branch remota e remoção do worktree `cosmic-panda`; documento atualizado | Análise técnica |
 | 21/10/2026 | Allowlist de domínio (`ALLOWED_EMAIL_DOMAIN`), login em duas etapas e login com Google Workspace; `SEC-01` parcialmente mitigado | Análise técnica |
 | 21/10/2026 | Fase 1 (P0) executada com subagentes: `SEC-02`, `SEC-03`, `SEC-04`, `SEC-05`, `SEC-07`, `SEC-09` e `DX-01` (35 testes) | Análise técnica |
+| 21/10/2026 | `SEC-01` decidido: acesso aberto, todo mundo entra como empregado e o admin concede as demais funções depois | Análise técnica |
