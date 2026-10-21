@@ -13,7 +13,7 @@ import {
   SidebarProvider, 
   SidebarTrigger 
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Users, CalendarDays, LogOut, Briefcase } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "./notification-bell";
@@ -28,7 +28,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Sidebar className="border-r shadow-sm">
           <SidebarHeader className="h-16 flex items-center px-4 border-b">
             <div className="flex items-center gap-2 font-bold text-lg text-sidebar-foreground">
-              <Briefcase className="w-6 h-6 text-sidebar-primary" />
+              <img
+                src="/favicon.svg"
+                alt=""
+                className="h-6 w-6 object-contain"
+              />
               <span>Dashboard de Férias</span>
             </div>
           </SidebarHeader>
