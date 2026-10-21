@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import { connectDb } from "@workspace/db";
 import { authMiddleware } from "./middlewares/authMiddleware";
+import { notFoundHandler, errorHandler } from "./middlewares/error-handler";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { ensureBootstrapAdmin } from "./lib/bootstrap";
@@ -50,5 +51,7 @@ app.use(async (_req, res, next) => {
 app.use(authMiddleware);
 
 app.use("/api", router);
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 export default app;
