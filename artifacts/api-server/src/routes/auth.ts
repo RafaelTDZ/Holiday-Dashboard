@@ -211,9 +211,27 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
   res.redirect(appBaseUrl(req) || "/");
 });
 
-router.get("/logout", async (req: Request, res: Response) => {
+/**
+ * Encerra a sessão atual: apaga o registro da sessão no banco e limpa o
+ * cookie `sid`. Usado pelas duas rotas de logout para não duplicar a lógica.
+ */
+async function endSession(req: Request, res: Response): Promise<void> {
   const sid = getSessionId(req);
   await clearSession(res, sid);
+}
+
+router.post("/logout", async (req: Request, res: Response) => {
+  await endSession(req, res);
+  res.json({ ok: true });
+});
+
+/**
+ * @deprecated Mantida apenas por compatibilidade com o frontend atual, que
+ * ainda navega para `/api/logout` via `GET`. O logout via `GET` pode ser
+ * acionado por link/imagem; migrar para `POST /logout` e remover esta rota.
+ */
+router.get("/logout", async (req: Request, res: Response) => {
+  await endSession(req, res);
   res.redirect("/");
 });
 
