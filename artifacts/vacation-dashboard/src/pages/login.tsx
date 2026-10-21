@@ -138,45 +138,8 @@ export default function Login() {
           <CardContent className="pt-4 pb-8 px-8 space-y-5">
             {step === "email" ? (
               <form onSubmit={handleEmailSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    autoFocus
-                    placeholder={getAllowedEmailDomain() ? `voce@${getAllowedEmailDomain()}` : "voce@empresa.com"}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    disabled={loading}
-                    data-testid="input-email"
-                  />
-                  {getAllowedEmailDomain() && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Somente e-mails @{getAllowedEmailDomain()} são permitidos.
-                    </p>
-                  )}
-                </div>
-
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="w-full text-base font-semibold shadow-md"
-                  disabled={loading}
-                  data-testid="button-continue"
-                >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Continuar
-                </Button>
-
                 {google && (
                   <>
-                    <div className="flex items-center gap-3 py-1">
-                      <span className="h-px flex-1 bg-border" />
-                      <span className="text-xs uppercase text-muted-foreground">ou</span>
-                      <span className="h-px flex-1 bg-border" />
-                    </div>
-
                     <Button
                       type="button"
                       variant="outline"
@@ -190,18 +153,40 @@ export default function Login() {
                       <GoogleIcon className="h-5 w-5" />
                       Entrar com Google
                     </Button>
+
+                    <div className="flex items-center gap-3 py-1">
+                      <span className="h-px flex-1 bg-border" />
+                      <span className="text-xs uppercase text-muted-foreground">ou</span>
+                      <span className="h-px flex-1 bg-border" />
+                    </div>
                   </>
                 )}
 
-                <div className="text-center">
-                  <a
-                    href={`${getAppBase()}/forgot-password`}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid="link-forgot-password"
-                  >
-                    Esqueci minha senha
-                  </a>
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoFocus
+                    placeholder={getAllowedEmailDomain() ? `voce@${getAllowedEmailDomain()}` : "voce@empresa.com"}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={loading}
+                    data-testid="input-email"
+                  />
                 </div>
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full text-base font-semibold shadow-md"
+                  disabled={loading}
+                  data-testid="button-continue"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Continuar
+                </Button>
               </form>
             ) : (
               <form onSubmit={handlePasswordSubmit} className="space-y-4">

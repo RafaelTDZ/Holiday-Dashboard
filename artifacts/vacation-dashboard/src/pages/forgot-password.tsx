@@ -95,11 +95,6 @@ export default function ForgotPassword() {
                     disabled={loading}
                     data-testid="input-email-forgot"
                   />
-                  {getAllowedEmailDomain() && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Somente e-mails @{getAllowedEmailDomain()} são permitidos.
-                    </p>
-                  )}
                 </div>
 
                 {error && (
