@@ -5,12 +5,15 @@ import {
   VacationModel,
   VacationSaleModel,
   UserModel,
+  SessionModel,
+  PasswordResetTokenModel,
 } from "@workspace/db";
 import {
   CreateEmployeeBody,
   UpdateEmployeeBody,
 } from "@workspace/api-zod";
 import { calculateVacationStats, vacationDurationDays } from "../lib/vacation-utils";
+import { getSessionId } from "../lib/auth";
 
 const toDateStr = (d: Date | string): string => {
   if (typeof d === "string") {
@@ -363,6 +366,23 @@ router.put("/employees/:id/password", async (req: Request, res: Response): Promi
 
   const newHash = await bcrypt.hash(newPassword, 12);
   await UserModel.updateOne({ _id: user._id }, { $set: { passwordHash: newHash } });
+
+  // The password changed: revoke every other session of this user. The current
+  // session is kept so whoever changed their own password stays logged in.
+  // `getSessionId` also resolves the `Authorization: Bearer <sid>` header, so
+  // API/mobile clients keep their session as well.
+  const currentSid = getSessionId(req);
+  if (currentSid) {
+    await SessionModel.deleteMany({
+      "sess.user.id": String(user._id),
+      sid: { $ne: currentSid },
+    });
+  } else {
+    await SessionModel.deleteMany({ "sess.user.id": String(user._id) });
+  }
+
+  // Pending password-reset tokens of this user are no longer valid.
+  await PasswordResetTokenModel.deleteMany({ userId: String(user._id) });
 
   res.json({ message: "Senha alterada com sucesso." });
 });

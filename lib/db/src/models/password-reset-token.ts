@@ -4,6 +4,13 @@ const { Schema, model, models } = mongoose;
 
 /**
  * One-time tokens used by the "forgot password" flow.
+ *
+ * The value stored in `token` is the SHA-256 hash of the real token — the
+ * plain token only exists in the e-mail sent to the user, so a database leak
+ * does not allow anyone to reset a password.
+ *
+ * Expired documents are removed automatically by MongoDB through the TTL index
+ * on `expiresAt` (`expireAfterSeconds: 0`).
  */
 const passwordResetTokenSchema = new Schema(
   {
@@ -14,6 +21,9 @@ const passwordResetTokenSchema = new Schema(
   },
   { id: false, collection: "password_reset_tokens" },
 );
+
+// TTL index: MongoDB deletes the document once `expiresAt` is in the past.
+passwordResetTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export type PasswordResetToken = InferSchemaType<typeof passwordResetTokenSchema>;
 

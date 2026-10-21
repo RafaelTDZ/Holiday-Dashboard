@@ -1,8 +1,8 @@
 import bcrypt from "bcryptjs";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { GetCurrentAuthUserResponse } from "@workspace/api-zod";
-import { UserModel, PasswordResetTokenModel } from "@workspace/db";
-import { randomBytes } from "crypto";
+import { UserModel, PasswordResetTokenModel, SessionModel } from "@workspace/db";
+import { createHash, randomBytes } from "node:crypto";
 import { sendPasswordResetEmail } from "../lib/email";
 import { logger } from "../lib/logger";
 import {
@@ -51,6 +51,15 @@ function setSessionCookie(res: Response, sid: string) {
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+/**
+ * Hashes a password-reset token (SHA-256) before it is stored in the database.
+ * The plain token is only delivered through the e-mail sent to the user, so a
+ * leaked database dump does not allow anyone to reset a password.
+ */
+export function hashResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 function toAuthUser(user: {
@@ -298,7 +307,7 @@ router.post(
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     await PasswordResetTokenModel.create({
-      token,
+      token: hashResetToken(token),
       userId: String(user._id),
       expiresAt,
     });
@@ -327,8 +336,10 @@ router.post(
       return;
     }
 
+    const tokenHash = hashResetToken(token);
+
     const record = await PasswordResetTokenModel.findOne({
-      token,
+      token: tokenHash,
       expiresAt: { $gt: new Date() },
     });
 
@@ -342,7 +353,10 @@ router.post(
       { _id: record.userId },
       { $set: { passwordHash } },
     );
-    await PasswordResetTokenModel.deleteOne({ token });
+    await PasswordResetTokenModel.deleteOne({ token: tokenHash });
+
+    // The password changed: every existing session of this user is revoked.
+    await SessionModel.deleteMany({ "sess.user.id": String(record.userId) });
 
     res.json({ ok: true });
   },
