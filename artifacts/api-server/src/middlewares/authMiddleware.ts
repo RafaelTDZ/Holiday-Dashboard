@@ -20,6 +20,17 @@ declare global {
   }
 }
 
+/**
+ * Decides whether a session must be invalidated.
+ *
+ * A session is only valid while its user still exists in the database.
+ * `hasUser` is false when the id stored in the session is not a valid
+ * ObjectId or when no user document matches it (e.g. the user was deleted).
+ */
+export function shouldInvalidateSession(opts: { hasUser: boolean }): boolean {
+  return !opts.hasUser;
+}
+
 export async function authMiddleware(
   req: Request,
   res: Response,
@@ -48,9 +59,18 @@ export async function authMiddleware(
     ? await UserModel.findById(session.user.id).select("isManager").lean()
     : null;
 
-  req.user = dbUser
-    ? { ...session.user, isManager: dbUser.isManager }
-    : session.user;
+  // A session is only valid while its user still exists in the database.
+  // When the user was deleted (or the stored id is not a valid ObjectId) the
+  // session must be dropped instead of authenticating the request: the
+  // session document is removed, the cookie is cleared and `req.user` stays
+  // unset, so protected routes answer 401.
+  if (shouldInvalidateSession({ hasUser: dbUser != null })) {
+    await clearSession(res, sid);
+    next();
+    return;
+  }
+
+  req.user = { ...session.user, isManager: dbUser!.isManager };
 
   next();
 }
