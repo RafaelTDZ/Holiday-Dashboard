@@ -1,0 +1,64 @@
+# ============================================================================
+# Prettier — arquivos que NÃO devem ser formatados
+# ============================================================================
+#
+# O `pnpm run lint` roda `prettier --check .`, então tudo que estiver listado
+# aqui é pulado pela checagem. O objetivo é ter um lint utilizável (verde)
+# sem reformatar o projeto inteiro de uma vez.
+#
+# Como tirar um arquivo da lista: rode `pnpm run format` no arquivo e apague
+# a linha correspondente daqui.
+#
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# 1. Dependências e artefatos de build
+# ---------------------------------------------------------------------------
+node_modules
+dist
+build
+coverage
+.vercel
+*.tsbuildinfo
+
+# ---------------------------------------------------------------------------
+# 2. Arquivos gerados (não editáveis à mão)
+# ---------------------------------------------------------------------------
+# Lockfile do pnpm
+pnpm-lock.yaml
+
+# Cliente/schemas gerados pelo Orval
+# (`pnpm --filter @workspace/api-spec run codegen`)
+lib/api-client-react/src/generated
+lib/api-zod/src/generated
+
+# Mockups gerados do sandbox
+artifacts/mockup-sandbox/src/.generated
+
+# ---------------------------------------------------------------------------
+# 3. Código vendorizado de terceiros
+# ---------------------------------------------------------------------------
+# Componentes do shadcn/ui: são copiados pelo CLI do shadcn
+# (`pnpm dlx shadcn@latest add ...`) e usam o estilo original deles
+# (sem ponto e vírgula). Reformatá-los aqui só geraria conflito na
+# próxima atualização.
+artifacts/*/src/components/ui
+artifacts/*/src/hooks/use-toast.ts
+artifacts/*/src/hooks/use-mobile.tsx
+artifacts/*/src/lib/utils.ts
+
+# HTML/CSS do sandbox de mockups: veio do template do shadcn/tailwind e é
+# reescrito pelo plugin de preview, não é código do projeto.
+artifacts/mockup-sandbox/index.html
+artifacts/mockup-sandbox/src/index.css
+
+# ---------------------------------------------------------------------------
+# 4. Markdown
+# ---------------------------------------------------------------------------
+# As tabelas do README/CONTRIBUTING/docs são mantidas no formato manual
+# (colunas alinhadas à mão). O Prettier realinharia todas elas e geraria
+# um diff enorme sem ganho funcional.
+*.md
+docs/
+
+# ---------------------------------------------------------------------------

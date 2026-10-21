@@ -3,10 +3,20 @@ import { useRequestPasswordReset } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Briefcase, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import { getAppBase, getApiErrorMessage, isNetworkError } from "@/utils/api";
-import { getAllowedEmailDomain, getCompanyEmailError, isAllowedCompanyEmail } from "@/utils/email";
+import {
+  getAllowedEmailDomain,
+  getCompanyEmailError,
+  isAllowedCompanyEmail,
+} from "@/utils/email";
 import * as z from "zod";
 
 export default function ForgotPassword() {
@@ -22,9 +32,12 @@ export default function ForgotPassword() {
     setError("");
 
     const domain = getAllowedEmailDomain();
-    const emailSchema = z.string().email().refine((val) => !domain || isAllowedCompanyEmail(val), {
-      message: getCompanyEmailError(),
-    });
+    const emailSchema = z
+      .string()
+      .email()
+      .refine((val) => !domain || isAllowedCompanyEmail(val), {
+        message: getCompanyEmailError(),
+      });
     const result = emailSchema.safeParse(email);
     if (!result.success) {
       setError(result.error.errors[0].message);
@@ -59,7 +72,9 @@ export default function ForgotPassword() {
 
         <Card className="border-border/50 shadow-xl">
           <CardHeader className="text-center pb-2">
-            <CardTitle className="text-2xl font-bold tracking-tight">Esqueci a senha</CardTitle>
+            <CardTitle className="text-2xl font-bold tracking-tight">
+              Esqueci a senha
+            </CardTitle>
             <CardDescription className="text-base mt-2">
               {sent
                 ? "Verifique seu e-mail."
@@ -72,9 +87,15 @@ export default function ForgotPassword() {
               <div className="flex flex-col items-center gap-4 py-4 text-center">
                 <CheckCircle className="h-12 w-12 text-green-500" />
                 <p className="text-sm text-muted-foreground">
-                  Se houver uma conta vinculada ao e-mail <strong>{email}</strong>, você receberá um link para redefinir a senha em breve. O link expira em 1 hora.
+                  Se houver uma conta vinculada ao e-mail{" "}
+                  <strong>{email}</strong>, você receberá um link para redefinir
+                  a senha em breve. O link expira em 1 hora.
                 </p>
-                <Button variant="outline" className="w-full mt-2" onClick={() => window.location.href = loginUrl}>
+                <Button
+                  variant="outline"
+                  className="w-full mt-2"
+                  onClick={() => (window.location.href = loginUrl)}
+                >
                   Voltar ao login
                 </Button>
               </div>
@@ -85,7 +106,11 @@ export default function ForgotPassword() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder={getAllowedEmailDomain() ? `voce@${getAllowedEmailDomain()}` : "voce@empresa.com"}
+                    placeholder={
+                      getAllowedEmailDomain()
+                        ? `voce@${getAllowedEmailDomain()}`
+                        : "voce@empresa.com"
+                    }
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -94,9 +119,7 @@ export default function ForgotPassword() {
                   />
                 </div>
 
-                {error && (
-                  <p className="text-sm text-destructive">{error}</p>
-                )}
+                {error && <p className="text-sm text-destructive">{error}</p>}
 
                 <Button
                   type="submit"
@@ -105,14 +128,16 @@ export default function ForgotPassword() {
                   disabled={loading}
                   data-testid="button-submit-forgot"
                 >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
                   Enviar link de redefinição
                 </Button>
 
                 <button
                   type="button"
                   className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mx-auto"
-                  onClick={() => window.location.href = loginUrl}
+                  onClick={() => (window.location.href = loginUrl)}
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Voltar ao login

@@ -3,7 +3,12 @@ import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useVacations, toDateStr, PT_MONTHS, PT_WEEKDAYS } from "@/hooks/use-vacations";
+import {
+  useVacations,
+  toDateStr,
+  PT_MONTHS,
+  PT_WEEKDAYS,
+} from "@/hooks/use-vacations";
 
 interface CalendarCellProps {
   day: number | null;
@@ -13,7 +18,11 @@ interface CalendarCellProps {
   vacationsCount: number;
   onSelect: () => void;
   colorFor: (employeeId: number) => { pill: string };
-  vacations: Array<{ id: number; employeeId: number; employeeName: string | null }>;
+  vacations: Array<{
+    id: number;
+    employeeId: number;
+    employeeName: string | null;
+  }>;
 }
 
 const CalendarCell = memo(function CalendarCell({
@@ -68,12 +77,16 @@ const CalendarCell = memo(function CalendarCell({
               title={name}
             >
               <span className="font-bold">{initials}</span>
-              <span className="truncate hidden sm:block">{name.split(" ")[0]}</span>
+              <span className="truncate hidden sm:block">
+                {name.split(" ")[0]}
+              </span>
             </div>
           );
         })}
         {vacationsCount > 3 && (
-          <div className="text-[10px] text-muted-foreground pl-1">+{vacationsCount - 3} mais</div>
+          <div className="text-[10px] text-muted-foreground pl-1">
+            +{vacationsCount - 3} mais
+          </div>
         )}
       </div>
     </div>
@@ -86,9 +99,10 @@ export default function Calendar() {
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
-  const { vacations, isLoading, uniqueEmployees, colorFor, vacationsOnDay } = useVacations({
-    status: "approved",
-  });
+  const { vacations, isLoading, uniqueEmployees, colorFor, vacationsOnDay } =
+    useVacations({
+      status: "approved",
+    });
 
   const prevMonth = () => {
     if (month === 0) {
@@ -112,7 +126,11 @@ export default function Calendar() {
 
   const firstDayOfWeek = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayStr = toDateStr(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
 
   // Memoiza celulas do calendario
   const cells = useMemo(() => {
@@ -134,20 +152,34 @@ export default function Calendar() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Calendário de Férias</h1>
-        <p className="text-muted-foreground mt-1">Visualize os períodos de férias aprovados da equipe.</p>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Calendário de Férias
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Visualize os períodos de férias aprovados da equipe.
+        </p>
       </div>
 
       <div className="bg-card border shadow-sm rounded-xl overflow-hidden">
         {/* Month navigation */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/20">
-          <Button variant="ghost" size="icon" onClick={prevMonth} aria-label="Mês anterior">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={prevMonth}
+            aria-label="Mês anterior"
+          >
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <h2 className="text-lg font-semibold tracking-tight">
             {PT_MONTHS[month]} {year}
           </h2>
-          <Button variant="ghost" size="icon" onClick={nextMonth} aria-label="Próximo mês">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={nextMonth}
+            aria-label="Próximo mês"
+          >
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
@@ -175,7 +207,9 @@ export default function Calendar() {
             {/* Calendar grid */}
             <div className="grid grid-cols-7 gap-px bg-border">
               {cells.map((cell, idx) => {
-                const dayVacations = cell.dateStr ? vacationsOnDay(cell.dateStr) : [];
+                const dayVacations = cell.dateStr
+                  ? vacationsOnDay(cell.dateStr)
+                  : [];
                 return (
                   <CalendarCell
                     key={idx}
@@ -186,7 +220,11 @@ export default function Calendar() {
                     vacationsCount={dayVacations.length}
                     vacations={dayVacations}
                     colorFor={colorFor}
-                    onSelect={() => setSelectedDay(cell.dateStr === selectedDay ? null : cell.dateStr)}
+                    onSelect={() =>
+                      setSelectedDay(
+                        cell.dateStr === selectedDay ? null : cell.dateStr,
+                      )
+                    }
                   />
                 );
               })}
@@ -220,11 +258,18 @@ export default function Calendar() {
                   <div>
                     <p className="font-medium text-sm">{v.employeeName}</p>
                     <p className="text-xs opacity-70">
-                      {new Date(v.startDate + "T12:00:00").toLocaleDateString("pt-BR")} –{" "}
-                      {new Date(v.endDate + "T12:00:00").toLocaleDateString("pt-BR")}
+                      {new Date(v.startDate + "T12:00:00").toLocaleDateString(
+                        "pt-BR",
+                      )}{" "}
+                      –{" "}
+                      {new Date(v.endDate + "T12:00:00").toLocaleDateString(
+                        "pt-BR",
+                      )}
                     </p>
                   </div>
-                  <Badge className="bg-green-500 text-white text-xs border-0">Aprovado</Badge>
+                  <Badge className="bg-green-500 text-white text-xs border-0">
+                    Aprovado
+                  </Badge>
                 </div>
               );
             })}
@@ -234,14 +279,18 @@ export default function Calendar() {
 
       {selectedDay && selectedDayVacations.length === 0 && (
         <div className="bg-card border shadow-sm rounded-xl p-4 animate-in fade-in duration-200">
-          <p className="text-sm text-muted-foreground text-center">Nenhuma férias aprovada para este dia.</p>
+          <p className="text-sm text-muted-foreground text-center">
+            Nenhuma férias aprovada para este dia.
+          </p>
         </div>
       )}
 
       {/* Legend */}
       {!isLoading && uniqueEmployees.length > 0 && (
         <div className="bg-card border shadow-sm rounded-xl p-4">
-          <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">Legenda</h3>
+          <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
+            Legenda
+          </h3>
           <div className="flex flex-wrap gap-2">
             {uniqueEmployees.map((emp) => {
               const color = colorFor(emp.id);
@@ -262,7 +311,9 @@ export default function Calendar() {
       {!isLoading && uniqueEmployees.length === 0 && (
         <div className="bg-card border shadow-sm rounded-xl p-8 text-center">
           <CalendarDays className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-muted-foreground">Nenhuma férias aprovada para exibir no calendário.</p>
+          <p className="text-muted-foreground">
+            Nenhuma férias aprovada para exibir no calendário.
+          </p>
         </div>
       )}
     </div>

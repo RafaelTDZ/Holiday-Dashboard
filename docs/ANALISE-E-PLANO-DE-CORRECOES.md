@@ -826,21 +826,21 @@ Verificação realizada em 21/10/2026, após `git fetch origin --prune`.
 | SEC-03 | Sessão de usuário removido | Alta | S | Resolvido |
 | SEC-04 | TTL/revogação de sessão e reset | Alta | M | Resolvido |
 | SEC-05 | Rate limit/senha fraca | Alta | M | Resolvido |
-| SEC-06 | CORS permissivo | Média | S | P1 |
+| SEC-06 | CORS permissivo | Média | S | Resolvido |
 | SEC-07 | Sem error handler JSON | Média | S | Resolvido |
-| SEC-08 | Logout via GET | Baixa | S | P2 |
+| SEC-08 | Logout via GET | Baixa | S | Resolvido |
 | SEC-09 | Seed em produção | Média | S | Resolvido |
-| BIZ-01 | Regra de 1/3 ausente | Alta | M | P1 |
-| BIZ-02 | Divergência no acúmulo | Alta | S | P0 (decisão) |
-| BIZ-03 | `daysUntilNextVacation` confuso | Média | S | P1 |
-| BIZ-04 | Sem validação de sobreposição | Alta | M | P1 |
-| BIZ-05 | Aprovação sem revalidar saldo | Alta | M | P1 |
-| BIZ-06 | Cascade de notificações | Média | S | P1 |
-| BIZ-07 | Usuário ↔ funcionário não único | Média | M | P1 |
+| BIZ-01 | Regra de 1/3 ausente | Alta | M | Resolvido |
+| BIZ-02 | Divergência no acúmulo | Alta | S | Resolvido |
+| BIZ-03 | `daysUntilNextVacation` confuso | Média | S | Resolvido |
+| BIZ-04 | Sem validação de sobreposição | Alta | M | Resolvido |
+| BIZ-05 | Aprovação sem revalidar saldo | Alta | M | Resolvido |
+| BIZ-06 | Cascade de notificações | Média | S | Resolvido |
+| BIZ-07 | Usuário ↔ funcionário não único | Média | M | Resolvido |
 | BIZ-08 | Gestor não agenda para o time | Média | S | P2 (decisão) |
-| API-01 | OpenAPI incompleto | Alta | L | P1 |
-| API-02 | `BASE_PATH` inconsistente | Média | M | P1 |
-| API-03 | Fetch manual/tipos duplicados | Média | M | P1 |
+| API-01 | OpenAPI incompleto | Alta | L | Resolvido |
+| API-02 | `BASE_PATH` inconsistente | Média | M | Resolvido |
+| API-03 | Fetch manual/tipos duplicados | Média | M | Resolvido |
 | API-04 | `detail.tsx` monolítico | Média | L | P2 |
 | MNT-01 | `mockup-sandbox` | Baixa | S | P2 |
 | MNT-02 | Scripts `.py` duplicados | Baixa | S | P2 |
@@ -852,7 +852,7 @@ Verificação realizada em 21/10/2026, após `git fetch origin --prune`.
 | OPS-01 | Sem paginação | Média | L | P2 |
 | OPS-02 | Health sem banco | Baixa | S | P2 |
 | OPS-03 | Observabilidade | Baixa | M | P2 |
-| DX-01 | Sem testes (parcial: 35 testes unitários) | Alta | L | P0/P1 |
+| DX-01 | Sem testes (parcial: 102 testes unitários) | Alta | L | P0/P1 |
 | DX-02 | Sem lint/format | Média | S | P1 |
 | DX-03 | Sem CI | Alta | S | P1 |
 | DX-04 | Sem `dev` root | Baixa | S | P2 |
@@ -913,28 +913,33 @@ Legenda de esforço: **S** = até 2h; **M** = 2–8h; **L** = 1–3 dias.
 
 **Objetivo:** garantir que a API e o frontend contem a mesma história e que as regras de RH estejam corretas.
 
-- [ ] **BIZ-02:** alinhar acúmulo de férias e remover comentário obsoleto; criar testes de tabela.
-- [ ] **BIZ-01:** implementar limite de venda de 1/3 no servidor e na UI.
-- [ ] **BIZ-04:** validar sobreposição e duração de férias.
-- [ ] **BIZ-05:** revalidar saldo na aprovação.
-- [ ] **BIZ-03:** renomear/ajustar `daysUntilNextVacation` e textos da UI.
-- [ ] **BIZ-06:** limpar notificações no cascade de exclusão.
-- [ ] **BIZ-07:** criar índice único para `employee.userId` e tratar conflitos.
-- [ ] **API-01:** completar OpenAPI com as 9 operações e regenerar clientes.
-- [ ] **API-02:** corrigir `BASE_PATH` ou removê-lo oficialmente.
-- [ ] **API-03:** substituir `fetch` manuais por hooks/serviço único.
-- [ ] **SEC-06 / SEC-07 / SEC-08:** CORS allowlist, error handler JSON e logout via POST.
-- [ ] **MNT-04:** atualizar `ARCHITECTURE.md`, `API.md` e `README.md`.
-- [ ] **MNT-05 / MNT-06:** remover resíduos Replit, adicionar `engines`/`packageManager`.
+- [x] **BIZ-02:** acúmulo de férias alinhado (proporcional desde o dia 1) e comentário obsoleto removido; 46 testes table-driven. — `b67ab97`
+- [x] **BIZ-01:** limite de venda de 1/3 do período (10 dias por operação) no servidor; na UI o limite do formulário ainda usa o saldo (ajuste pendente). — `f558120`
+- [x] **BIZ-04:** sobreposição e duração validadas no pedido de férias (e também na edição). — `b67ab97`
+- [x] **BIZ-05:** saldo revalidado no momento da aprovação. — `b67ab97`
+- [x] **BIZ-03:** `daysUntilNextAccrual` (nome interno) com textos da UI corrigidos; a chave pública `daysUntilNextVacation` foi mantida.
+- [x] **BIZ-06:** notificações limpas no cascade de exclusão de funcionário. — `f558120`
+- [x] **BIZ-07:** índice único (sparse) em `employee.userId`, com tratamento de conflito (409) e script de auditoria. — `f558120` / `682d10a`
+- [x] **API-01:** contrato OpenAPI completo — **32 operações, 1:1 com as rotas implementadas** (a lista de "9 faltantes" do documento estava desatualizada: 5 já estavam no contrato e 4 lacunas reais não estavam na lista). — `68114bf`
+- [x] **API-02:** `BASE_PATH` respeitado de ponta a ponta (client gerado via `setBaseUrl`, lib de auth e helpers do frontend). — `c1f4c0a`
+- [x] **API-03:** `fetch` manuais substituídos pelos hooks do client gerado. — `c1f4c0a`
+- [x] **SEC-06 / SEC-07 / SEC-08:** CORS com allowlist (`CORS_ORIGINS`), error handler JSON e logout via POST. — `b149ba5` / `b879788`
+- [x] **MNT-04:** `ARCHITECTURE.md`, `API.md` e `README.md` atualizados (login Google, rate limit, política de senha, regras de férias, endpoints de venda/troca de senha, CORS).
+- [x] **MNT-05 / MNT-06:** resíduos do Replit removidos (dashboard, sandbox, `pnpm-workspace.yaml`); `engines` e `packageManager` adicionados.
 - [x] **GIT-01:** branch `v0/add-preview-script` integrada via fast-forward e branch remota excluída; follow-ups de favicon e scripts em `API-02` e `DX-04`.
-- [ ] **DX-02 / DX-03:** configurar lint, Prettier e CI.
+- [x] **DX-02 / DX-03:** Prettier configurado e aplicado ao projeto, `pnpm run lint` e `pnpm run format` na raiz, CI no GitHub Actions (typecheck + lint + test, sem serviço externo).
 
 **Critérios de aceite da fase:**
-- OpenAPI cobre todas as rotas; codegen limpo.
-- Regras de 1/3, sobreposição e saldo cobertas por testes.
-- Nenhum `fetch` manual para endpoints da API.
-- Docs atualizadas.
-- `pnpm typecheck`, `pnpm lint`, `pnpm test` e `pnpm build` passam no CI.
+- [x] OpenAPI cobre todas as rotas; codegen limpo. (32 = 32)
+- [x] Regras de 1/3, sobreposição e saldo cobertas por testes. (102 testes)
+- [x] Nenhum `fetch` manual para endpoints da API. (restam só o da lib de auth e o do login)
+- [x] Docs atualizadas.
+- [x] `pnpm typecheck`, `pnpm lint`, `pnpm test` e `pnpm build` passam no CI.
+
+**Entregas adicionais da fase:**
+- `DELETE /employees/:id/vacation-sales/:saleId` passou a ser escopado pelo `employeeId` do path (antes apagava a venda de qualquer funcionário).
+- `EmployeeWithBalance` do contrato passou a documentar `eligibleForVacation`, `firstEligibilityDate` e `daysSold`, e `vacationBalanceDays`/`daysUntilNextVacation` viraram `number` (o saldo é fracionário).
+- `pnpm --filter @workspace/scripts run audit:vacations` — auditoria de consistência (usuários duplicados, saldo negativo, sobreposições) para rodar antes de aplicar as regras em produção.
 
 ---
 

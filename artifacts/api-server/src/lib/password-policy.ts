@@ -40,8 +40,7 @@ const MESSAGES = {
   tooShort: `A senha deve ter no menos ${PASSWORD_MIN_LENGTH} caracteres.`,
   complexity:
     "A senha precisa combinar letras maiúsculas, minúsculas, números e símbolos (use ao menos 3 desses 4 tipos).",
-  similarToEmail:
-    "A senha não pode conter o seu e-mail nem partes dele.",
+  similarToEmail: "A senha não pode conter o seu e-mail nem partes dele.",
 } as const;
 
 /** Letra minúscula (inclui acentos, ex.: `ç`, `é`). */

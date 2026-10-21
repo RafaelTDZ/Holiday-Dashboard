@@ -3,8 +3,21 @@ import { useResetPassword } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, Eye, EyeOff, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Briefcase,
+  Eye,
+  EyeOff,
+  Loader2,
+  CheckCircle,
+  AlertTriangle,
+} from "lucide-react";
 import { getAppBase, getApiErrorMessage, isNetworkError } from "@/utils/api";
 import { getPasswordError } from "@/utils/password";
 
@@ -56,7 +69,12 @@ export default function ResetPassword() {
           <CardContent className="pt-10 pb-8 px-8 flex flex-col items-center gap-4 text-center">
             <AlertTriangle className="h-12 w-12 text-amber-500" />
             <p className="font-medium">Link inválido ou incompleto.</p>
-            <Button variant="outline" onClick={() => window.location.href = loginUrl}>Voltar ao login</Button>
+            <Button
+              variant="outline"
+              onClick={() => (window.location.href = loginUrl)}
+            >
+              Voltar ao login
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -75,9 +93,13 @@ export default function ResetPassword() {
 
         <Card className="border-border/50 shadow-xl">
           <CardHeader className="text-center pb-2">
-            <CardTitle className="text-2xl font-bold tracking-tight">Nova senha</CardTitle>
+            <CardTitle className="text-2xl font-bold tracking-tight">
+              Nova senha
+            </CardTitle>
             <CardDescription className="text-base mt-2">
-              {done ? "Senha redefinida com sucesso." : "Escolha uma nova senha para sua conta."}
+              {done
+                ? "Senha redefinida com sucesso."
+                : "Escolha uma nova senha para sua conta."}
             </CardDescription>
           </CardHeader>
 
@@ -86,9 +108,13 @@ export default function ResetPassword() {
               <div className="flex flex-col items-center gap-4 py-4 text-center">
                 <CheckCircle className="h-12 w-12 text-green-500" />
                 <p className="text-sm text-muted-foreground">
-                  Sua senha foi redefinida. Você já pode fazer login com a nova senha.
+                  Sua senha foi redefinida. Você já pode fazer login com a nova
+                  senha.
                 </p>
-                <Button className="w-full mt-2" onClick={() => window.location.href = loginUrl}>
+                <Button
+                  className="w-full mt-2"
+                  onClick={() => (window.location.href = loginUrl)}
+                >
                   Ir para o login
                 </Button>
               </div>
@@ -114,7 +140,11 @@ export default function ResetPassword() {
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       onClick={() => setShowPassword((s) => !s)}
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -133,9 +163,7 @@ export default function ResetPassword() {
                   />
                 </div>
 
-                {error && (
-                  <p className="text-sm text-destructive">{error}</p>
-                )}
+                {error && <p className="text-sm text-destructive">{error}</p>}
 
                 <Button
                   type="submit"
@@ -144,7 +172,9 @@ export default function ResetPassword() {
                   disabled={loading}
                   data-testid="button-submit-reset"
                 >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
                   Salvar nova senha
                 </Button>
               </form>

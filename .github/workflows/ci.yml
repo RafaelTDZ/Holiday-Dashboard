@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, lint and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # A suíte é 100% unitária (vitest.config.ts): nenhuma variável de
+      # ambiente é lida pelos testes e não há conexão com o MongoDB/rede.
+      CI: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Instala a versão de pnpm declarada em `packageManager` no
+      # package.json da raiz (pnpm@10.33.0). Precisa rodar antes do
+      # setup-node, porque o cache do setup-node depende do pnpm.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint (Prettier)
+        run: pnpm run lint
+
+      - name: Test
+        run: pnpm run test

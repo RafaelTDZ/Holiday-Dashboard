@@ -2,7 +2,13 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, UserCircle, Briefcase, Calendar, ClipboardList } from "lucide-react";
+import {
+  Loader2,
+  UserCircle,
+  Briefcase,
+  Calendar,
+  ClipboardList,
+} from "lucide-react";
 import {
   useGetMyEmployee,
   useRegisterAsEmployee,
@@ -37,9 +43,7 @@ const schema = z.object({
   name: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
   role: z.string().min(2, "Cargo deve ter no mínimo 2 caracteres"),
   department: z.enum(DEPARTMENTS),
-  hireDate: z
-    .string()
-    .refine((v) => !isNaN(Date.parse(v)), "Data inválida"),
+  hireDate: z.string().refine((v) => !isNaN(Date.parse(v)), "Data inválida"),
 });
 
 type Props = {
@@ -57,9 +61,7 @@ export function RegistrationGate({ children }: Props) {
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name: user
-        ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
-        : "",
+      name: user ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() : "",
       role: "",
       department: undefined,
       hireDate: new Date().toISOString().split("T")[0],
@@ -91,9 +93,15 @@ export function RegistrationGate({ children }: Props) {
       { data: values },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetMyEmployeeQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({
+            queryKey: getGetMyEmployeeQueryKey(),
+          });
+          queryClient.invalidateQueries({
+            queryKey: getListEmployeesQueryKey(),
+          });
+          queryClient.invalidateQueries({
+            queryKey: getGetDashboardSummaryQueryKey(),
+          });
           setSubmitted(true);
           toast({
             title: "Cadastro concluído",
@@ -110,7 +118,7 @@ export function RegistrationGate({ children }: Props) {
               "Ocorreu um erro inesperado.",
           });
         },
-      }
+      },
     );
   };
 
@@ -122,9 +130,7 @@ export function RegistrationGate({ children }: Props) {
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/20 mb-3">
               <ClipboardList className="w-7 h-7 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Bem-vindo(a)!
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight">Bem-vindo(a)!</h1>
             <p className="text-muted-foreground text-sm mt-1">
               Você ainda não está cadastrado como funcionário. <br />
               Preencha seus dados para continuar.
@@ -188,7 +194,10 @@ export function RegistrationGate({ children }: Props) {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Departamento</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger data-testid="reg-input-department">
                               <SelectValue placeholder="Selecionar..." />
@@ -196,7 +205,9 @@ export function RegistrationGate({ children }: Props) {
                           </FormControl>
                           <SelectContent>
                             {DEPARTMENTS.map((dept) => (
-                              <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                              <SelectItem key={dept} value={dept}>
+                                {dept}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>

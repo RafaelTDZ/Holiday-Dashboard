@@ -93,9 +93,7 @@ export function errorHandler(
 
   const malformedBody = isMalformedBodyError(err);
   const status = malformedBody ? 400 : resolveStatus(err);
-  const message = malformedBody
-    ? INVALID_BODY_MESSAGE
-    : INTERNAL_ERROR_MESSAGE;
+  const message = malformedBody ? INVALID_BODY_MESSAGE : INTERNAL_ERROR_MESSAGE;
 
   const payload: { error: string; details?: string } = { error: message };
 

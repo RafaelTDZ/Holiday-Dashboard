@@ -25,7 +25,9 @@ const passwordResetTokenSchema = new Schema(
 // TTL index: MongoDB deletes the document once `expiresAt` is in the past.
 passwordResetTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-export type PasswordResetToken = InferSchemaType<typeof passwordResetTokenSchema>;
+export type PasswordResetToken = InferSchemaType<
+  typeof passwordResetTokenSchema
+>;
 
 export const PasswordResetTokenModel =
   (models.PasswordResetToken as Model<PasswordResetToken>) ??

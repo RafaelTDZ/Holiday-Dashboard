@@ -190,7 +190,10 @@ export function calculateVacationStats(
  * Duração (em dias, inclusive) de um período de férias.
  * `2024-01-01` → `2024-01-01` = 1 dia; `2024-01-01` → `2024-01-10` = 10 dias.
  */
-export function vacationDurationDays(startDate: string, endDate: string): number {
+export function vacationDurationDays(
+  startDate: string,
+  endDate: string,
+): number {
   const start = new Date(startDate + "T00:00:00Z");
   const end = new Date(endDate + "T00:00:00Z");
   return (
@@ -211,10 +214,7 @@ export function sumApprovedVacationDays(
 ): number {
   return vacations
     .filter((v) => v.status === "approved" && v.id !== excludeId)
-    .reduce(
-      (acc, v) => acc + vacationDurationDays(v.startDate, v.endDate),
-      0,
-    );
+    .reduce((acc, v) => acc + vacationDurationDays(v.startDate, v.endDate), 0);
 }
 
 /**
@@ -233,9 +233,7 @@ export function hasVacationOverlap(
   existing: { startDate: string; endDate: string }[],
 ): boolean {
   const { startDate, endDate } = range;
-  return existing.some(
-    (v) => v.startDate <= endDate && startDate <= v.endDate,
-  );
+  return existing.some((v) => v.startDate <= endDate && startDate <= v.endDate);
 }
 
 /**

@@ -30,7 +30,9 @@ describe("getMaxDaysPerSale", () => {
   it("mantém as constantes coerentes entre si", () => {
     expect(VACATION_PERIOD_DAYS).toBe(30);
     expect(MAX_SALE_FRACTION).toBeCloseTo(1 / 3, 10);
-    expect(MAX_DAYS_PER_SALE).toBe(Math.floor(VACATION_PERIOD_DAYS * MAX_SALE_FRACTION));
+    expect(MAX_DAYS_PER_SALE).toBe(
+      Math.floor(VACATION_PERIOD_DAYS * MAX_SALE_FRACTION),
+    );
   });
 
   it("cai no limite padrão quando o período é inválido", () => {
@@ -77,9 +79,15 @@ describe("validateSaleDays", () => {
   });
 
   it("recusa dias inválidos (zero, negativo ou fracionário)", () => {
-    expect(validateSaleDays({ daysSold: 0, balanceDays: 30 }).valid).toBe(false);
-    expect(validateSaleDays({ daysSold: -1, balanceDays: 30 }).valid).toBe(false);
-    expect(validateSaleDays({ daysSold: 1.5, balanceDays: 30 }).valid).toBe(false);
+    expect(validateSaleDays({ daysSold: 0, balanceDays: 30 }).valid).toBe(
+      false,
+    );
+    expect(validateSaleDays({ daysSold: -1, balanceDays: 30 }).valid).toBe(
+      false,
+    );
+    expect(validateSaleDays({ daysSold: 1.5, balanceDays: 30 }).valid).toBe(
+      false,
+    );
   });
 
   it("a mensagem do limite explica a regra de 1/3 em português", () => {
@@ -93,7 +101,9 @@ describe("validateSaleDays", () => {
   it("a mensagem de saldo mantém o formato já usado pela API", () => {
     const result = validateSaleDays({ daysSold: 10, balanceDays: 4.25 });
 
-    expect(result.message).toBe("Saldo insuficiente. Saldo disponível: 4.3 dias.");
+    expect(result.message).toBe(
+      "Saldo insuficiente. Saldo disponível: 4.3 dias.",
+    );
   });
 
   it("respeita um limite customizado por operação", () => {

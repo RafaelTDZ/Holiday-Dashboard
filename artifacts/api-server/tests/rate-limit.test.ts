@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import type { Request, Response, NextFunction } from "express";
-import { createRateLimiter, getRateLimitKey } from "../src/middlewares/rate-limit";
+import {
+  createRateLimiter,
+  getRateLimitKey,
+} from "../src/middlewares/rate-limit";
 
 // O logger real sobe um worker do pino (pino-pretty) e escreve no stdout.
 // Mockamos para manter a saída dos testes limpa e determinística.
@@ -110,7 +113,10 @@ describe("createRateLimiter", () => {
     );
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Limit", "3");
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Remaining", "0");
-    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Retry-After",
+      expect.any(String),
+    );
   });
 
   it("conta cada cliente separadamente", () => {
@@ -138,7 +144,11 @@ describe("createRateLimiter", () => {
     expect(next).toHaveBeenCalledTimes(1);
 
     const blocked = createFakeRes();
-    limiter(asRequest(createFakeReq("198.51.100.9")), asResponse(blocked), next);
+    limiter(
+      asRequest(createFakeReq("198.51.100.9")),
+      asResponse(blocked),
+      next,
+    );
     expect(next).toHaveBeenCalledTimes(1);
     expect(blocked.status).toHaveBeenCalledWith(429);
 
@@ -146,7 +156,11 @@ describe("createRateLimiter", () => {
     vi.advanceTimersByTime(1_500);
 
     const afterWindow = createFakeRes();
-    limiter(asRequest(createFakeReq("198.51.100.9")), asResponse(afterWindow), next);
+    limiter(
+      asRequest(createFakeReq("198.51.100.9")),
+      asResponse(afterWindow),
+      next,
+    );
 
     expect(next).toHaveBeenCalledTimes(2);
     expect(afterWindow.status).not.toHaveBeenCalledWith(429);
@@ -159,7 +173,11 @@ describe("createRateLimiter", () => {
     const res = createFakeRes();
     limiter(asRequest(createFakeReq("198.51.100.20")), asResponse(res), next);
     const blocked = createFakeRes();
-    limiter(asRequest(createFakeReq("198.51.100.20")), asResponse(blocked), next);
+    limiter(
+      asRequest(createFakeReq("198.51.100.20")),
+      asResponse(blocked),
+      next,
+    );
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(blocked.status).toHaveBeenCalledWith(429);

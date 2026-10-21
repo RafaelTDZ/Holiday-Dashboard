@@ -5,18 +5,18 @@ import { useAuth } from "@workspace/auth-web";
 // carregado na inicialização do app, toda requisição já sai com o base path
 // correto.
 import "@/utils/api";
-import { 
-  Sidebar, 
-  SidebarContent, 
-  SidebarFooter, 
-  SidebarGroup, 
-  SidebarGroupContent, 
-  SidebarHeader, 
-  SidebarMenu, 
-  SidebarMenuButton, 
-  SidebarMenuItem, 
-  SidebarProvider, 
-  SidebarTrigger 
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { LayoutDashboard, Users, CalendarDays, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -46,8 +46,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <SidebarGroupContent className="py-4">
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       isActive={location === "/"}
                       tooltip="Dashboard"
                     >
@@ -58,8 +58,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       isActive={location.startsWith("/employees")}
                       tooltip="Funcionários"
                     >
@@ -101,7 +101,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   {user?.email}
                 </span>
               </div>
-              <Button variant="ghost" size="icon" onClick={logout} className="text-sidebar-foreground hover:bg-sidebar-accent/50" data-testid="button-logout" title="Sair">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={logout}
+                className="text-sidebar-foreground hover:bg-sidebar-accent/50"
+                data-testid="button-logout"
+                title="Sair"
+              >
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
@@ -112,16 +119,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {/* Top header — visible on all screen sizes */}
           <header className="h-16 flex items-center px-6 border-b bg-card/50 backdrop-blur sticky top-0 z-10">
             <SidebarTrigger className="-ml-2 lg:hidden" />
-            <div className="ml-4 font-semibold lg:hidden">Dashboard de Férias</div>
+            <div className="ml-4 font-semibold lg:hidden">
+              Dashboard de Férias
+            </div>
             <div className="ml-auto flex items-center gap-2">
               <NotificationBell />
             </div>
           </header>
 
           <div className="flex-1 overflow-auto p-6 md:p-8">
-            <div className="mx-auto max-w-6xl">
-              {children}
-            </div>
+            <div className="mx-auto max-w-6xl">{children}</div>
           </div>
         </main>
       </div>

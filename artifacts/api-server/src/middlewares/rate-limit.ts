@@ -149,8 +149,14 @@ export function createRateLimiter(
     bucket.hits = recent;
     buckets.set(key, bucket);
 
-    res.setHeader("X-RateLimit-Remaining", String(Math.max(0, max - recent.length)));
-    res.setHeader("X-RateLimit-Reset", String(Math.ceil((now + windowMs) / 1000)));
+    res.setHeader(
+      "X-RateLimit-Remaining",
+      String(Math.max(0, max - recent.length)),
+    );
+    res.setHeader(
+      "X-RateLimit-Reset",
+      String(Math.ceil((now + windowMs) / 1000)),
+    );
 
     next();
   };

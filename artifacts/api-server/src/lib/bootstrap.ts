@@ -79,7 +79,10 @@ async function bootstrap(): Promise<void> {
           { _id: existing._id },
           { $set: { isManager: true } },
         );
-        logger.info({ email }, "Promoted the configured admin account to manager");
+        logger.info(
+          { email },
+          "Promoted the configured admin account to manager",
+        );
       }
     } else {
       const passwordHash = await bcrypt.hash(password, 12);

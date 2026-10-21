@@ -84,13 +84,19 @@ describe("validatePassword", () => {
   });
 
   it("rejeita senha que contém a parte local do e-mail", () => {
-    const result = validatePassword("mariasilva@2026", "maria.silva@tdztrading.com.br");
+    const result = validatePassword(
+      "mariasilva@2026",
+      "maria.silva@tdztrading.com.br",
+    );
 
     expect(result.valid).toBe(false);
   });
 
   it("aceita senha forte que não tem relação com o e-mail", () => {
-    const result = validatePassword("Barra#Forte2026", "maria.silva@tdztrading.com.br");
+    const result = validatePassword(
+      "Barra#Forte2026",
+      "maria.silva@tdztrading.com.br",
+    );
 
     expect(result.valid).toBe(true);
   });

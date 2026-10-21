@@ -3,12 +3,22 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Briefcase, Eye, EyeOff, Loader2 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthProviders } from "@/hooks/use-auth-providers";
 import { getApiBase, getAppBase } from "@/utils/api";
-import { getAllowedEmailDomain, getCompanyEmailError, isAllowedCompanyEmail } from "@/utils/email";
+import {
+  getAllowedEmailDomain,
+  getCompanyEmailError,
+  isAllowedCompanyEmail,
+} from "@/utils/email";
 import { getAuthErrorMessage } from "@/utils/auth-errors";
 
 type Step = "email" | "password";
@@ -74,7 +84,11 @@ export default function Login() {
 
     const result = emailSchema.safeParse(email);
     if (!result.success) {
-      toast({ variant: "destructive", title: "Erro", description: result.error.errors[0].message });
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: result.error.errors[0].message,
+      });
       return;
     }
 
@@ -98,13 +112,21 @@ export default function Login() {
       const data = await res.json();
 
       if (!res.ok) {
-        toast({ variant: "destructive", title: "Erro", description: data.error ?? "Ocorreu um erro." });
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: data.error ?? "Ocorreu um erro.",
+        });
         return;
       }
 
       window.location.href = getAppBase() || "/";
     } catch {
-      toast({ variant: "destructive", title: "Erro de conexão", description: "Não foi possível conectar ao servidor." });
+      toast({
+        variant: "destructive",
+        title: "Erro de conexão",
+        description: "Não foi possível conectar ao servidor.",
+      });
     } finally {
       setLoading(false);
     }
@@ -127,7 +149,9 @@ export default function Login() {
 
         <Card className="border-border/50 shadow-xl">
           <CardHeader className="text-center pb-2">
-            <CardTitle className="text-2xl font-bold tracking-tight">Dashboard de Férias</CardTitle>
+            <CardTitle className="text-2xl font-bold tracking-tight">
+              Dashboard de Férias
+            </CardTitle>
             <CardDescription className="text-base mt-2">
               {step === "email"
                 ? "Informe seu e-mail corporativo para continuar."
@@ -156,7 +180,9 @@ export default function Login() {
 
                     <div className="flex items-center gap-3 py-1">
                       <span className="h-px flex-1 bg-border" />
-                      <span className="text-xs uppercase text-muted-foreground">ou</span>
+                      <span className="text-xs uppercase text-muted-foreground">
+                        ou
+                      </span>
                       <span className="h-px flex-1 bg-border" />
                     </div>
                   </>
@@ -168,7 +194,11 @@ export default function Login() {
                     id="email"
                     type="email"
                     autoFocus
-                    placeholder={getAllowedEmailDomain() ? `voce@${getAllowedEmailDomain()}` : "voce@empresa.com"}
+                    placeholder={
+                      getAllowedEmailDomain()
+                        ? `voce@${getAllowedEmailDomain()}`
+                        : "voce@empresa.com"
+                    }
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -184,7 +214,9 @@ export default function Login() {
                   disabled={loading}
                   data-testid="button-continue"
                 >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
                   Continuar
                 </Button>
               </form>
@@ -193,7 +225,10 @@ export default function Login() {
                 <div className="space-y-1.5">
                   <Label htmlFor="email-display">E-mail</Label>
                   <div className="flex items-center justify-between gap-2 rounded-md border border-input bg-muted/40 px-3 py-2">
-                    <span className="text-sm truncate" data-testid="email-display">
+                    <span
+                      className="text-sm truncate"
+                      data-testid="email-display"
+                    >
                       {email}
                     </span>
                     <button
@@ -228,7 +263,11 @@ export default function Login() {
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       onClick={() => setShowPassword((s) => !s)}
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                 </div>

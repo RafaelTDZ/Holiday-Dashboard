@@ -1,15 +1,15 @@
-import { execSync } from 'child_process';
-import { chdir } from 'process';
+import { execSync } from "child_process";
+import { chdir } from "process";
 
 try {
-  chdir('/vercel/share/v0-project');
+  chdir("/vercel/share/v0-project");
 
   // Configurar git
   execSync('git config user.email "v0[bot]@users.noreply.github.com"');
   execSync('git config user.name "v0[bot]"');
 
   // Adicionar todas as mudanças
-  execSync('git add -A');
+  execSync("git add -A");
 
   // Fazer commit
   const commitMessage = `refactor: Melhorias de Performance e Code Quality
@@ -26,10 +26,10 @@ Co-authored-by: v0[bot] <v0[bot]@users.noreply.github.com>`;
   execSync(`git commit -m "${commitMessage}"`);
 
   // Fazer push
-  execSync('git push');
+  execSync("git push");
 
-  console.log('✓ Mudanças salvas com sucesso no GitHub!');
+  console.log("✓ Mudanças salvas com sucesso no GitHub!");
 } catch (error) {
-  console.error('[v0] Erro ao fazer commit:', error.message);
+  console.error("[v0] Erro ao fazer commit:", error.message);
   process.exit(1);
 }

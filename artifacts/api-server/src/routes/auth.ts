@@ -1,7 +1,11 @@
 import bcrypt from "bcryptjs";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { GetCurrentAuthUserResponse } from "@workspace/api-zod";
-import { UserModel, PasswordResetTokenModel, SessionModel } from "@workspace/db";
+import {
+  UserModel,
+  PasswordResetTokenModel,
+  SessionModel,
+} from "@workspace/db";
 import { createHash, randomBytes } from "node:crypto";
 import { sendPasswordResetEmail } from "../lib/email";
 import { logger } from "../lib/logger";
@@ -39,7 +43,9 @@ const GOOGLE_STATE_COOKIE = "google_oauth_state";
 const GOOGLE_STATE_TTL = 10 * 60 * 1000;
 
 function appBaseUrl(req: Request): string {
-  const base = process.env.APP_URL?.replace(/\/$/, "") ?? `${req.protocol}://${req.get("host")}`;
+  const base =
+    process.env.APP_URL?.replace(/\/$/, "") ??
+    `${req.protocol}://${req.get("host")}`;
   const appBase = process.env.APP_BASE_PATH ?? "";
   return `${base}${appBase}`;
 }
@@ -149,7 +155,10 @@ router.get("/auth/google/callback", async (req: Request, res: Response) => {
     return;
   }
 
-  const { code, state, error } = req.query as Record<string, string | undefined>;
+  const { code, state, error } = req.query as Record<
+    string,
+    string | undefined
+  >;
 
   if (error) {
     redirect(`error=${encodeURIComponent(error)}`);
@@ -364,7 +373,8 @@ router.post(
       expiresAt,
     });
 
-    const baseUrl = process.env.APP_URL ?? `${req.protocol}://${req.get("host")}`;
+    const baseUrl =
+      process.env.APP_URL ?? `${req.protocol}://${req.get("host")}`;
     const appBase = process.env.APP_BASE_PATH ?? "";
     const resetUrl = `${baseUrl}${appBase}/reset-password?token=${token}`;
 
@@ -379,7 +389,12 @@ router.post(
   authRateLimiter,
   async (req: Request, res: Response): Promise<void> => {
     const { token, password } = req.body ?? {};
-    if (!token || !password || typeof token !== "string" || typeof password !== "string") {
+    if (
+      !token ||
+      !password ||
+      typeof token !== "string" ||
+      typeof password !== "string"
+    ) {
       res.status(400).json({ error: "Token e nova senha são obrigatórios." });
       return;
     }
@@ -398,7 +413,9 @@ router.post(
     });
 
     if (!record) {
-      res.status(400).json({ error: "Link de redefinição inválido ou expirado." });
+      res
+        .status(400)
+        .json({ error: "Link de redefinição inválido ou expirado." });
       return;
     }
 

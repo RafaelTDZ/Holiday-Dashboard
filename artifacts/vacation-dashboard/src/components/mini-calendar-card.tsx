@@ -3,7 +3,12 @@ import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useVacations, toDateStr, PT_MONTHS, PT_WEEKDAYS_SHORT } from "@/hooks/use-vacations";
+import {
+  useVacations,
+  toDateStr,
+  PT_MONTHS,
+  PT_WEEKDAYS_SHORT,
+} from "@/hooks/use-vacations";
 
 /**
  * Componente de mini-calendario para o dashboard.
@@ -15,9 +20,10 @@ function MiniCalendarCardBase() {
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
-  const { vacations, isLoading, uniqueEmployees, colorFor, vacationsOnDay } = useVacations({
-    status: "approved",
-  });
+  const { vacations, isLoading, uniqueEmployees, colorFor, vacationsOnDay } =
+    useVacations({
+      status: "approved",
+    });
 
   const prevMonth = () => {
     if (month === 0) {
@@ -41,7 +47,11 @@ function MiniCalendarCardBase() {
 
   const firstDayOfWeek = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayStr = toDateStr(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
 
   // Memoiza as celulas do calendario
   const cells = useMemo(() => {
@@ -69,10 +79,10 @@ function MiniCalendarCardBase() {
             Calendário de Férias
           </CardTitle>
           <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-7 w-7" 
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
               onClick={prevMonth}
               aria-label="Mês anterior"
             >
@@ -81,10 +91,10 @@ function MiniCalendarCardBase() {
             <span className="text-sm font-medium min-w-[120px] text-center">
               {PT_MONTHS[month]} {year}
             </span>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-7 w-7" 
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
               onClick={nextMonth}
               aria-label="Próximo mês"
             >
@@ -106,8 +116,8 @@ function MiniCalendarCardBase() {
             {/* Weekday labels */}
             <div className="grid grid-cols-7 mb-1">
               {PT_WEEKDAYS_SHORT.map((wd, i) => (
-                <div 
-                  key={i} 
+                <div
+                  key={i}
                   className="py-1 text-center text-[11px] font-semibold text-muted-foreground"
                 >
                   {wd}
@@ -128,7 +138,9 @@ function MiniCalendarCardBase() {
                 return (
                   <button
                     key={idx}
-                    onClick={() => setSelectedDay(isSelected ? null : cell.dateStr!)}
+                    onClick={() =>
+                      setSelectedDay(isSelected ? null : cell.dateStr!)
+                    }
                     className={`
                       h-10 flex flex-col items-center justify-start pt-1 rounded-lg text-xs transition-colors relative
                       ${isSelected ? "ring-2 ring-primary bg-primary/5" : "hover:bg-muted/60"}
@@ -168,14 +180,19 @@ function MiniCalendarCardBase() {
             {selectedDay && (
               <div className="mt-3 rounded-lg border bg-muted/30 p-3 animate-in fade-in slide-in-from-top-1 duration-200">
                 <p className="text-xs font-semibold text-muted-foreground mb-2">
-                  {new Date(selectedDay + "T12:00:00").toLocaleDateString("pt-BR", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                  })}
+                  {new Date(selectedDay + "T12:00:00").toLocaleDateString(
+                    "pt-BR",
+                    {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                    },
+                  )}
                 </p>
                 {selectedDayVacations.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Nenhuma férias aprovada.</p>
+                  <p className="text-xs text-muted-foreground">
+                    Nenhuma férias aprovada.
+                  </p>
                 ) : (
                   <div className="space-y-1.5">
                     {selectedDayVacations.map((v) => {
@@ -189,7 +206,9 @@ function MiniCalendarCardBase() {
                           <span>{v.employeeName}</span>
                           <span className="ml-auto opacity-75">
                             até{" "}
-                            {new Date(v.endDate + "T12:00:00").toLocaleDateString("pt-BR", {
+                            {new Date(
+                              v.endDate + "T12:00:00",
+                            ).toLocaleDateString("pt-BR", {
                               day: "numeric",
                               month: "short",
                             })}
@@ -222,7 +241,9 @@ function MiniCalendarCardBase() {
 
             {uniqueEmployees.length === 0 && (
               <div className="mt-4 flex flex-col items-center justify-center py-4 text-center">
-                <p className="text-xs text-muted-foreground">Nenhuma férias aprovada para exibir.</p>
+                <p className="text-xs text-muted-foreground">
+                  Nenhuma férias aprovada para exibir.
+                </p>
               </div>
             )}
           </>

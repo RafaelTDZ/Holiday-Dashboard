@@ -21,7 +21,9 @@ export const VACATION_PERIOD_DAYS = 30;
 export const MAX_SALE_FRACTION = 1 / 3;
 
 /** Limite padrão de dias vendidos por operação (1/3 de 30 dias). */
-export const MAX_DAYS_PER_SALE = Math.floor(VACATION_PERIOD_DAYS * MAX_SALE_FRACTION);
+export const MAX_DAYS_PER_SALE = Math.floor(
+  VACATION_PERIOD_DAYS * MAX_SALE_FRACTION,
+);
 
 /**
  * Limite de dias que podem ser vendidos em uma única operação.

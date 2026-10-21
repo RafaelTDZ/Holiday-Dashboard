@@ -86,34 +86,29 @@ function serializeVacation(vacation: {
   };
 }
 
-router.get(
-  "/vacations",
-  async (req: Request, res: Response): Promise<void> => {
-    if (!req.isAuthenticated()) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
+router.get("/vacations", async (req: Request, res: Response): Promise<void> => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
 
-    const { status } = req.query;
+  const { status } = req.query;
 
-    const filter = status ? { status: status as string } : {};
+  const filter = status ? { status: status as string } : {};
 
-    const rows = await VacationModel.find(filter)
-      .sort({ startDate: 1 })
-      .lean();
+  const rows = await VacationModel.find(filter).sort({ startDate: 1 }).lean();
 
-    const employees = await EmployeeModel.find().lean();
-    const employeesById = new Map(employees.map((e) => [e.id, e]));
+  const employees = await EmployeeModel.find().lean();
+  const employeesById = new Map(employees.map((e) => [e.id, e]));
 
-    res.json({
-      vacations: rows.map((v) => ({
-        ...serializeVacation(v),
-        employeeName: employeesById.get(v.employeeId)?.name ?? null,
-        employeeDepartment: employeesById.get(v.employeeId)?.department ?? null,
-      })),
-    });
-  },
-);
+  res.json({
+    vacations: rows.map((v) => ({
+      ...serializeVacation(v),
+      employeeName: employeesById.get(v.employeeId)?.name ?? null,
+      employeeDepartment: employeesById.get(v.employeeId)?.department ?? null,
+    })),
+  });
+});
 
 router.get(
   "/employees/:id/vacations",
@@ -178,19 +173,22 @@ router.post(
     }
 
     if (emp.userId !== req.user!.id) {
-      res.status(403).json({ error: "Você só pode agendar férias para si mesmo." });
+      res
+        .status(403)
+        .json({ error: "Você só pode agendar férias para si mesmo." });
       return;
     }
 
-    const existingVacations = await VacationModel.find({ employeeId: id }).lean();
-    const existingSales = await VacationSaleModel.find({ employeeId: id }).lean();
+    const existingVacations = await VacationModel.find({
+      employeeId: id,
+    }).lean();
+    const existingSales = await VacationSaleModel.find({
+      employeeId: id,
+    }).lean();
     const soldDays = existingSales.reduce((acc, s) => acc + s.daysSold, 0);
 
-    const { vacationBalanceDays, firstEligibilityDate } = calculateVacationStats(
-      emp.hireDate,
-      existingVacations,
-      soldDays,
-    );
+    const { vacationBalanceDays, firstEligibilityDate } =
+      calculateVacationStats(emp.hireDate, existingVacations, soldDays);
     if (vacationBalanceDays < 30) {
       res.status(403).json({
         error: `Saldo insuficiente para solicitar férias. Férias disponíveis a partir de ${firstEligibilityDate}.`,
@@ -210,7 +208,9 @@ router.post(
     const endDate = toDateStr(endDateRaw as Date | string);
 
     if (endDate < startDate) {
-      res.status(400).json({ error: "End date must be on or after start date" });
+      res
+        .status(400)
+        .json({ error: "End date must be on or after start date" });
       return;
     }
 
@@ -234,7 +234,9 @@ router.post(
     // BIZ-04 — duração: mínimo de 1 dia e cabimento no saldo disponível.
     const duration = vacationDurationDays(startDate, endDate);
     if (duration < 1) {
-      res.status(400).json({ error: "A duração mínima das férias é de 1 dia." });
+      res
+        .status(400)
+        .json({ error: "A duração mínima das férias é de 1 dia." });
       return;
     }
 
@@ -297,7 +299,9 @@ router.put(
       return;
     }
     if (!req.user!.isManager) {
-      res.status(403).json({ error: "Apenas coordenadores podem aprovar ou reprovar férias." });
+      res.status(403).json({
+        error: "Apenas coordenadores podem aprovar ou reprovar férias.",
+      });
       return;
     }
 
@@ -309,7 +313,9 @@ router.put(
 
     const { status } = req.body;
     if (status !== "approved" && status !== "rejected") {
-      res.status(400).json({ error: "Status deve ser 'approved' ou 'rejected'." });
+      res
+        .status(400)
+        .json({ error: "Status deve ser 'approved' ou 'rejected'." });
       return;
     }
 
@@ -339,7 +345,10 @@ router.put(
 
       const daysSold = employeeSales.reduce((acc, s) => acc + s.daysSold, 0);
       const daysEarned = calculateAccruedDays(emp.hireDate);
-      const approvedDays = sumApprovedVacationDays(employeeVacations, vacation.id);
+      const approvedDays = sumApprovedVacationDays(
+        employeeVacations,
+        vacation.id,
+      );
       const vacationDays = vacationDurationDays(
         vacation.startDate,
         vacation.endDate,
@@ -423,19 +432,29 @@ router.put(
     }
 
     if (vacation.status !== "pending") {
-      res.status(403).json({ error: "Só é possível editar férias com status Pendente." });
+      res
+        .status(403)
+        .json({ error: "Só é possível editar férias com status Pendente." });
       return;
     }
 
     const emp = await EmployeeModel.findOne({ id: vacation.employeeId }).lean();
     if (!emp || emp.userId !== req.user!.id) {
-      res.status(403).json({ error: "Você só pode editar suas próprias férias." });
+      res
+        .status(403)
+        .json({ error: "Você só pode editar suas próprias férias." });
       return;
     }
 
-    const { startDate: startDateRaw, endDate: endDateRaw, notes } = req.body ?? {};
+    const {
+      startDate: startDateRaw,
+      endDate: endDateRaw,
+      notes,
+    } = req.body ?? {};
     if (!startDateRaw || !endDateRaw) {
-      res.status(400).json({ error: "Data de início e término são obrigatórias." });
+      res
+        .status(400)
+        .json({ error: "Data de início e término são obrigatórias." });
       return;
     }
 
@@ -443,7 +462,9 @@ router.put(
     const endDate = toDateStr(endDateRaw);
 
     if (endDate < startDate) {
-      res.status(400).json({ error: "A data de término deve ser após o início." });
+      res
+        .status(400)
+        .json({ error: "A data de término deve ser após o início." });
       return;
     }
 
@@ -499,7 +520,9 @@ router.delete(
 
     // The owner of the vacation is the employee linked to the authenticated
     // user. Managers may delete any vacation; employees only their own.
-    const employee = await EmployeeModel.findOne({ id: vacation.employeeId }).lean();
+    const employee = await EmployeeModel.findOne({
+      id: vacation.employeeId,
+    }).lean();
 
     const allowed = canDeleteVacation({
       isManager: req.user!.isManager,
@@ -507,7 +530,9 @@ router.delete(
       ownerUserId: employee?.userId,
     });
     if (!allowed) {
-      res.status(403).json({ error: "Sem permissão para excluir estas férias." });
+      res
+        .status(403)
+        .json({ error: "Sem permissão para excluir estas férias." });
       return;
     }
 

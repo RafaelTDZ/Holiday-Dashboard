@@ -448,9 +448,24 @@ describe("vacationDurationDays", () => {
 describe("sumApprovedVacationDays", () => {
   it("soma apenas férias aprovadas, ignorando o pedido excluído", () => {
     const vacations = [
-      { id: 1, startDate: "2024-01-01", endDate: "2024-01-10", status: "approved" as const },
-      { id: 2, startDate: "2024-02-01", endDate: "2024-02-05", status: "approved" as const },
-      { id: 3, startDate: "2024-03-01", endDate: "2024-03-10", status: "pending" as const },
+      {
+        id: 1,
+        startDate: "2024-01-01",
+        endDate: "2024-01-10",
+        status: "approved" as const,
+      },
+      {
+        id: 2,
+        startDate: "2024-02-01",
+        endDate: "2024-02-05",
+        status: "approved" as const,
+      },
+      {
+        id: 3,
+        startDate: "2024-03-01",
+        endDate: "2024-03-10",
+        status: "pending" as const,
+      },
     ];
 
     expect(sumApprovedVacationDays(vacations)).toBe(15);
@@ -488,7 +503,10 @@ describe("calculateAccruedDays", () => {
 
   for (const c of cases) {
     it(c.name, () => {
-      expect(calculateAccruedDays(c.hireDate, TODAY)).toBeCloseTo(c.expected, 4);
+      expect(calculateAccruedDays(c.hireDate, TODAY)).toBeCloseTo(
+        c.expected,
+        4,
+      );
     });
   }
 });

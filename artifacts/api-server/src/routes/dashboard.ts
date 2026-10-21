@@ -1,10 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import { EmployeeModel, VacationModel, VacationSaleModel } from "@workspace/db";
 import {
-  EmployeeModel,
-  VacationModel,
-  VacationSaleModel,
-} from "@workspace/db";
-import { calculateVacationStats, vacationDurationDays } from "../lib/vacation-utils";
+  calculateVacationStats,
+  vacationDurationDays,
+} from "../lib/vacation-utils";
 import { todayDateOnly } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -40,7 +39,10 @@ router.get(
 
     let onVacationToday = 0;
     let overdueVacations = 0;
-    const departmentMap = new Map<string, { count: number; onVacation: number }>();
+    const departmentMap = new Map<
+      string,
+      { count: number; onVacation: number }
+    >();
     const upcomingVacations: {
       employeeId: number;
       employeeName: string;
@@ -89,7 +91,9 @@ router.get(
     upcomingVacations.sort((a, b) => a.startDate.localeCompare(b.startDate));
     const upcomingSlice = upcomingVacations.slice(0, 10);
 
-    const pendingRequests = allVacations.filter((v) => v.status === "pending").length;
+    const pendingRequests = allVacations.filter(
+      (v) => v.status === "pending",
+    ).length;
 
     const departmentBreakdown = Array.from(departmentMap.entries()).map(
       ([department, data]) => ({

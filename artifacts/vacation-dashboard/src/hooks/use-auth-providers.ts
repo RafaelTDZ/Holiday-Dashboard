@@ -1,4 +1,7 @@
-import { useListAuthProviders, getListAuthProvidersQueryKey } from "@workspace/api-client-react";
+import {
+  useListAuthProviders,
+  getListAuthProvidersQueryKey,
+} from "@workspace/api-client-react";
 
 export interface AuthProviders {
   google: boolean;

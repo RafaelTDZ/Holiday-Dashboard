@@ -10,7 +10,9 @@ const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET?.trim();
  * still verified server-side before the session is created.
  */
 function getWorkspaceDomain(): string | undefined {
-  const explicit = process.env.GOOGLE_WORKSPACE_DOMAIN?.trim().replace(/^@/, "").toLowerCase();
+  const explicit = process.env.GOOGLE_WORKSPACE_DOMAIN?.trim()
+    .replace(/^@/, "")
+    .toLowerCase();
   if (explicit) return explicit;
   return getAllowedEmailDomain() ?? undefined;
 }
@@ -21,7 +23,9 @@ export function isGoogleAuthEnabled(): boolean {
 
 export function getGoogleClient(): OAuth2Client {
   if (!CLIENT_ID || !CLIENT_SECRET) {
-    throw new Error("Google login is not configured (missing GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET)");
+    throw new Error(
+      "Google login is not configured (missing GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET)",
+    );
   }
   return new OAuth2Client(CLIENT_ID, CLIENT_SECRET);
 }

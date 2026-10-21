@@ -18,9 +18,7 @@ export function toDate(value: Date | string): Date {
 }
 
 export function todayDateOnly(now: Date = new Date()): string {
-  return new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()),
-  )
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
     .toISOString()
     .split("T")[0];
 }

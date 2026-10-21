@@ -12,7 +12,13 @@
  * Usage:
  *   MONGODB_URI="mongodb://..." pnpm --filter @workspace/scripts run audit:vacations
  */
-import { connectDb, disconnectDb, EmployeeModel, VacationModel, VacationSaleModel } from "@workspace/db";
+import {
+  connectDb,
+  disconnectDb,
+  EmployeeModel,
+  VacationModel,
+  VacationSaleModel,
+} from "@workspace/db";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -24,7 +30,10 @@ function durationDays(startDate: string, endDate: string): number {
 
 function accruedDays(hireDate: string, today: Date): number {
   const hire = new Date(`${hireDate}T00:00:00Z`).getTime();
-  const daysWorked = Math.max(0, Math.round((today.getTime() - hire) / MS_PER_DAY));
+  const daysWorked = Math.max(
+    0,
+    Math.round((today.getTime() - hire) / MS_PER_DAY),
+  );
   return (daysWorked / 365.25) * 30;
 }
 
@@ -38,7 +47,9 @@ async function main() {
 
   let problems = 0;
 
-  console.log("1) Usuários vinculados a mais de um funcionário (quebra o índice único):");
+  console.log(
+    "1) Usuários vinculados a mais de um funcionário (quebra o índice único):",
+  );
   const byUser = new Map<string, number[]>();
   for (const emp of employees) {
     if (!emp.userId) continue;
@@ -49,7 +60,9 @@ async function main() {
   for (const [userId, ids] of byUser) {
     if (ids.length > 1) {
       problems += 1;
-      console.log(`   PROBLEMA: userId ${userId} está em ${ids.length} funcionários: ${ids.join(", ")}`);
+      console.log(
+        `   PROBLEMA: userId ${userId} está em ${ids.length} funcionários: ${ids.join(", ")}`,
+      );
     }
   }
   if (problems === 0) console.log("   OK: nenhum usuário duplicado.");
@@ -62,7 +75,9 @@ async function main() {
     );
   }
 
-  console.log("\n2) Saldo de férias negativo (bloqueia a aprovação de novos pedidos):");
+  console.log(
+    "\n2) Saldo de férias negativo (bloqueia a aprovação de novos pedidos):",
+  );
   let negative = 0;
   for (const emp of employees) {
     const earned = accruedDays(emp.hireDate, today);
@@ -83,10 +98,14 @@ async function main() {
   }
   if (negative === 0) console.log("   OK: nenhum saldo negativo.");
 
-  console.log("\n3) Pedidos pendentes que se sobrepõem (bloqueiam novos pedidos no mesmo período):");
+  console.log(
+    "\n3) Pedidos pendentes que se sobrepõem (bloqueiam novos pedidos no mesmo período):",
+  );
   let overlaps = 0;
   for (const emp of employees) {
-    const pending = vacations.filter((v) => v.employeeId === emp.id && v.status === "pending");
+    const pending = vacations.filter(
+      (v) => v.employeeId === emp.id && v.status === "pending",
+    );
     for (let i = 0; i < pending.length; i += 1) {
       for (let j = i + 1; j < pending.length; j += 1) {
         const a = pending[i];

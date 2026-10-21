@@ -24,7 +24,9 @@ export function getMongoUri(): string {
   return uri;
 }
 
-export function connectDb(uri: string = getMongoUri()): Promise<typeof mongoose> {
+export function connectDb(
+  uri: string = getMongoUri(),
+): Promise<typeof mongoose> {
   if (!globalForMongoose.__mongoConnectionPromise) {
     globalForMongoose.__mongoConnectionPromise = mongoose
       .connect(uri, {

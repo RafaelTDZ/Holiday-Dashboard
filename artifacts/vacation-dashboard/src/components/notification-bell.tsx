@@ -51,7 +51,12 @@ export function NotificationBell() {
           getListNotificationsQueryKey(),
           (old) =>
             old
-              ? { notifications: old.notifications.map((n) => ({ ...n, read: true })) }
+              ? {
+                  notifications: old.notifications.map((n) => ({
+                    ...n,
+                    read: true,
+                  })),
+                }
               : old,
         );
       },
@@ -123,7 +128,9 @@ export function NotificationBell() {
               <div
                 key={notif.id}
                 className={`px-4 py-3 flex gap-3 items-start transition-colors hover:bg-muted/40 cursor-pointer ${
-                  notif.read ? "opacity-60" : "bg-blue-50/60 dark:bg-blue-950/20"
+                  notif.read
+                    ? "opacity-60"
+                    : "bg-blue-50/60 dark:bg-blue-950/20"
                 }`}
                 onClick={() => {
                   if (!notif.read) markAsRead(notif.id);
@@ -166,7 +173,8 @@ export function NotificationBell() {
         {notifications.length > 0 && (
           <div className="px-4 py-2 border-t bg-muted/20">
             <p className="text-[11px] text-muted-foreground text-center">
-              {notifications.length} notificação{notifications.length !== 1 ? "ões" : ""} · Últimas 30
+              {notifications.length} notificação
+              {notifications.length !== 1 ? "ões" : ""} · Últimas 30
             </p>
           </div>
         )}

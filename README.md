@@ -48,7 +48,9 @@ aprovações e avisos automáticos.
 
 ## Desenvolvimento local
 
-Requer Node.js 24+ e pnpm 10.
+Requer Node.js 24+ e pnpm 10 (a versão exata está fixada em
+`packageManager` no `package.json` da raiz — o Corepack usa esse valor
+automaticamente).
 
 ### 1. MongoDB
 
@@ -126,14 +128,34 @@ Para encerrar: `Stop-Process -Id (Get-NetTCPConnection -LocalPort 8080,20421 -St
 
 No Linux/macOS, o equivalente é `nohup ... &` (ou `tmux`/`screen`).
 
-
-
 ## Build e verificação
 
 ```bash
 pnpm run typecheck   # tsc --build em todos os pacotes
+pnpm run lint        # Prettier --check (formatação)
+pnpm run test        # suíte unitária (vitest)
 pnpm run build       # typecheck + build de cada pacote
 ```
+
+### Formatação (Prettier)
+
+O formato do código é padronizado pelo [Prettier](https://prettier.io/), com a
+configuração em `.prettierrc` (aspas duplas, ponto e vírgula, 2 espaços,
+vírgula final e largura de 80 colunas) e a lista de exceções em
+`.prettierignore` (código gerado, componentes vendorizados do shadcn/ui,
+Markdown e os arquivos que ainda estão em edição por outras mudanças).
+
+```bash
+pnpm run lint        # verifica a formatação (falha se algo estiver fora)
+pnpm run format      # corrige a formatação no lugar
+```
+
+### CI
+
+O workflow `.github/workflows/ci.yml` roda a cada `push` e `pull_request`:
+instala as dependências com `pnpm install --frozen-lockfile` e executa
+`typecheck`, `lint` e `test`. A suíte de testes é 100% unitária — não é
+necessário subir o MongoDB na CI.
 
 ## Deploy na Vercel
 

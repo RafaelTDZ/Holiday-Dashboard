@@ -32,6 +32,37 @@ GET /api/auth/user
 Authorization: Bearer <session_token>
 ```
 
+### 3. Google (Workspace) (opcional)
+
+Quando `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` estao configurados, o login
+com Google fica disponivel. O botao so aparece quando a API responde
+`{"google": true}` em `GET /api/auth/providers`.
+
+```http
+GET /api/auth/google          # 302 para o consentimento do Google
+GET /api/auth/google/callback # volta do Google e abre a sessao
+```
+
+O dominio do Workspace e enviado como `hd` e **validado no servidor** antes de
+criar a sessao. Quem entra por esse caminho nasce como empregado, igual aos
+outros.
+
+### Restricoes
+
+- **Dominio corporativo:** login, cadastro e recuperacao de senha so aceitam
+  e-mails de `ALLOWED_EMAIL_DOMAIN` (padrao `tdztrading.com.br`).
+- **Perfil base:** quem se cadastra e sempre **empregado** (`isManager =
+  false`). O papel de coordenador e concedido pelo administrador.
+- **Rate limit:** 30 requisicoes a cada 5 minutos no login/cadastro e 10 a cada
+  15 minutos na recuperacao de senha (por IP).
+- **Politica de senha:** minimo de 10 caracteres, 3 de 4 grupos (minuscula,
+  maiuscula, numero, simbolo) e a senha nao pode conter o e-mail da conta.
+
+## Erros
+
+Todas as respostas de erro saem em JSON, no formato `{ "error": "mensagem" }`.
+O `GET /api/logout` esta depreciado: use `POST /api/logout`.
+
 ## Endpoints
 
 ### Saude
@@ -92,13 +123,14 @@ Cria uma conta com e-mail e senha e inicia a sessao.
 
 **Corpo:**
 ```json
-{ "email": "user@example.com", "password": "minimo-6-caracteres" }
+{ "email": "user@tdztrading.com.br", "password": "minimo-10-caracteres" }
 ```
 
 **Resposta 200:** `{ "ok": true }` (e o cookie de sessao `sid`)
 
-**Resposta 400:** e-mail inválido, fora do domínio corporativo permitido (`ALLOWED_EMAIL_DOMAIN`) ou senha com menos de 6 caracteres
+**Resposta 400:** e-mail inválido, fora do domínio corporativo permitido (`ALLOWED_EMAIL_DOMAIN`) ou senha que não atende à política (mínimo de 10 caracteres, 3 de 4 grupos de caracteres)
 **Resposta 409:** o e-mail já está cadastrado
+**Resposta 429:** limite de requisições excedido
 
 ---
 
@@ -108,12 +140,13 @@ Autentica com e-mail e senha.
 
 **Corpo:**
 ```json
-{ "email": "user@example.com", "password": "minha-senha" }
+{ "email": "user@tdztrading.com.br", "password": "minha-senha" }
 ```
 
 **Resposta 200:** `{ "ok": true }` (e o cookie de sessao `sid`)
 
 **Resposta 400:** e-mail fora do domínio permitido (`ALLOWED_EMAIL_DOMAIN`) ou credenciais faltantes
+**Resposta 429:** limite de requisições excedido (30 a cada 5 minutos por IP)
 
 **Resposta 401:** e-mail ou senha incorretos
 
@@ -123,18 +156,21 @@ Autentica com e-mail e senha.
 
 Envia o e-mail de redefinicao de senha. A resposta e sempre `200`, mesmo
 quando o e-mail nao esta cadastrado (para nao revelar quem tem conta).
+O token e gravado no banco apenas como hash SHA-256 e expira em 1 hora (TTL).
 
-**Corpo:** `{ "email": "user@example.com" }`
+**Corpo:** `{ "email": "user@tdztrading.com.br" }`
 
 **Resposta 200:** `{ "ok": true }`
 
 **Resposta 400:** e-mail fora do domínio permitido (`ALLOWED_EMAIL_DOMAIN`)
+**Resposta 429:** limite de requisicoes excedido (10 a cada 15 minutos por IP)
 
 ---
 
 #### POST /api/auth/reset-password
 
 Define uma nova senha usando o token enviado por e-mail (valido por 1 hora).
+Ao redefinir, **todas as sessoes** do usuario sao revogadas.
 
 **Corpo:**
 ```json
@@ -142,13 +178,21 @@ Define uma nova senha usando o token enviado por e-mail (valido por 1 hora).
 ```
 
 **Resposta 200:** `{ "ok": true }`
-**Resposta 400:** token invalido ou expirado
+**Resposta 400:** token invalido ou expirado, ou senha que nao atende a politica
 
 ---
 
-#### GET /api/logout
+#### POST /api/logout
 
-Encerra a sessao do usuario (apaga o cookie `sid`).
+Encerra a sessao do usuario (apaga a sessao no banco e o cookie `sid`).
+
+**Resposta 200:** `{ "ok": true }`
+
+---
+
+#### GET /api/logout (depreciado)
+
+Mantido por compatibilidade. Use `POST /api/logout`.
 
 **Resposta:** Redirect 302 para `/`
 
@@ -183,6 +227,10 @@ Retorna o usuario autenticado atual.
 
 ### Funcionarios
 
+> As rotas de criacao, edicao, exclusao, aprovacao e venda de dias exigem
+> **coordenador** (`isManager`). Qualquer usuario autenticado pode apenas
+> consultar a lista e os proprios dados.
+
 #### GET /api/employees
 
 Lista todos os funcionarios com saldo de ferias.
@@ -198,10 +246,13 @@ Lista todos os funcionarios com saldo de ferias.
       "department": "Tecnologia",
       "hireDate": "2023-01-15",
       "createdAt": "2023-01-15T10:00:00Z",
-      "vacationBalanceDays": 25,
+      "vacationBalanceDays": 25.5,
       "daysUntilNextVacation": 30,
       "isOnVacation": false,
-      "nextVacationStart": "2024-07-01"
+      "nextVacationStart": "2024-07-01",
+      "eligibleForVacation": true,
+      "firstEligibilityDate": "2024-01-15",
+      "daysSold": 0
     }
   ]
 }
@@ -383,19 +434,40 @@ Cria uma nova solicitacao de ferias.
 }
 ```
 
+**Resposta 400:** o periodo conflita com outro pedido pendente/aprovado do
+mesmo funcionario, ou a duracao excede o saldo disponivel.
+
+---
+
+#### PUT /api/vacations/:id
+
+Edita um pedido de ferias **pendente** do proprio usuario.
+
+**Request Body:**
+```json
+{ "startDate": "2024-07-01", "endDate": "2024-07-15", "notes": "..." }
+```
+
+**Resposta 200:** o pedido atualizado
+**Resposta 400:** periodo invalido ou conflitante com outro pedido
+
 ---
 
 #### DELETE /api/vacations/:id
 
-Cancela uma solicitacao de ferias.
+Cancela uma solicitacao de ferias. So o proprio dono ou um coordenador pode
+excluir.
 
 **Resposta 204:** No content
+**Resposta 403:** `{ "error": "Sem permissao para excluir estas ferias." }`
 
 ---
 
 #### PUT /api/vacations/:id/status
 
-Atualiza o status de uma solicitacao de ferias (somente gestores).
+Atualiza o status de uma solicitacao de ferias (somente gestores). Ao
+aprovar, o saldo do funcionario e **revalidado**: a aprovacao e recusada se o
+periodo nao couber no saldo disponivel.
 
 **Request Body:**
 ```json
@@ -420,6 +492,7 @@ Status possiveis: `approved`, `rejected`
 }
 ```
 
+**Resposta 400:** saldo insuficiente para aprovar
 **Resposta 403:**
 ```json
 {
@@ -526,6 +599,63 @@ Auto-registro do usuario como funcionario.
 }
 ```
 
+**Resposta 409:** `{ "error": "Usuario ja vinculado a um funcionario." }`
+
+---
+
+### Vendas de dias
+
+#### GET /api/employees/:id/vacation-sales
+
+Lista as vendas de dias de um funcionario.
+
+**Resposta 200:** `{ "vacationSales": [ ... ] }`
+
+---
+
+#### POST /api/employees/:id/vacation-sales
+
+Registra uma venda de dias (somente coordenadores). O maximo e de **10 dias por
+operacao** (1/3 do periodo de 30 dias) e o total nao pode ultrapassar o saldo
+disponivel.
+
+**Request Body:**
+```json
+{ "daysSold": 5, "saleDate": "2024-02-01", "notes": "..." }
+```
+
+**Resposta 201:** a venda registrada
+**Resposta 400:** dias invalidos, acima do limite de 1/3 ou saldo insuficiente
+
+---
+
+#### DELETE /api/employees/:id/vacation-sales/:saleId
+
+Exclui uma venda de dias (somente coordenadores). A venda precisa pertencer ao
+funcionario do path.
+
+**Resposta 204:** No content
+**Resposta 404:** `{ "error": "Venda nao encontrada" }`
+
+---
+
+### Troca de senha
+
+#### PUT /api/employees/:id/password
+
+Troca a senha de um funcionario (o proprio ou um coordenador). As **outras**
+sessoes do usuario sao revogadas.
+
+**Request Body:**
+```json
+{ "currentPassword": "senha-atual", "newPassword": "nova-senha-forte" }
+```
+
+`currentPassword` e obrigatorio quando o proprio usuario troca a senha.
+
+**Resposta 200:** `{ "message": "Senha alterada com sucesso." }`
+**Resposta 400:** senha atual incorreta ou senha nova fora da politica
+
 ---
 
 ## Codigos de Status HTTP
@@ -540,6 +670,8 @@ Auto-registro do usuario como funcionario.
 | 401 | Nao autenticado |
 | 403 | Acesso negado |
 | 404 | Recurso nao encontrado |
+| 409 | Conflito (e-mail ou vinculo ja existente) |
+| 429 | Limite de requisicoes excedido |
 | 500 | Erro interno do servidor |
 
 ## Exemplos com cURL

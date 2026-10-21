@@ -14,7 +14,7 @@ O Holiday Dashboard segue uma arquitetura de monorepo com separacao clara entre 
 │  │      (Frontend)      │────│      (Backend)      │            │
 │  │                      │    │                      │            │
 │  │  React + Vite        │    │  Express.js         │            │
-│  │  TailwindCSS         │    │  Login local        │            │
+│  │  TailwindCSS         │    │  Login local + Google│            │
 │  │  React Query         │    │  MongoDB (Mongoose) │            │
 │  └──────────┬───────────┘    └──────────┬──────────┘            │
 │             │                            │                       │
@@ -84,21 +84,28 @@ O backend e uma API REST construida com Express.js.
 api-server/
 ├── src/
 │   ├── routes/           # Rotas da API
-│   │   ├── auth.ts       # Autenticacao
+│   │   ├── auth.ts       # Autenticacao (local + Google)
 │   │   ├── employees.ts  # CRUD de funcionarios
 │   │   ├── vacations.ts  # Gestao de ferias
 │   │   ├── dashboard.ts  # Dados do dashboard
 │   │   └── me.ts         # Perfil do usuario
 │   ├── middlewares/      # Middlewares
-│   │   └── authMiddleware.ts
+│   │   ├── authMiddleware.ts   # Valida a sessao
+│   │   ├── error-handler.ts    # Erros em JSON (404/500)
+│   │   └── rate-limit.ts       # Limite de requisicoes (em memoria)
 │   ├── lib/              # Utilitarios
 │   │   ├── auth.ts       # Funcoes de autenticacao
 │   │   ├── email.ts      # Envio de emails
+│   │   ├── email-domain.ts      # Dominio de e-mail permitido
+│   │   ├── google-auth.ts       # OAuth 2.0 do Google (Workspace)
 │   │   ├── logger.ts     # Logging (Pino)
+│   │   ├── password-policy.ts   # Politica de senha
+│   │   ├── rate-limit.ts         # (reexportado pelos middlewares)
 │   │   └── vacation-utils.ts
 │   ├── types/            # Tipos TypeScript
 │   ├── app.ts            # Configuracao do Express
 │   └── index.ts          # Entry point
+├── tests/               # Testes unitarios (vitest)
 └── tsconfig.json
 ```
 
@@ -109,19 +116,20 @@ Request
    │
    ▼
 ┌─────────────────┐
-│   CORS/Cookie   │
-│    Parsers      │
+│ CORS (allowlist │
+│  CORS_ORIGINS)  │
+│  Cookie Parsers │
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│ Auth Middleware │
+│ Auth Middleware │  (sessao invalidada se o usuario nao existir mais)
 │ (Session Check) │
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│     Router      │
+│     Router      │  (rate limit nas rotas de autenticacao)
 │  /api/...       │
 └────────┬────────┘
          │
@@ -132,7 +140,9 @@ Request
 └────────┬────────┘
          │
          ▼
-Response
+┌─────────────────┐
+│  Error Handler  │  (sempre JSON; 404 tambem)
+└─────────────────┘
 ```
 
 ### 3. Bibliotecas Compartilhadas
@@ -159,9 +169,12 @@ Schemas Zod gerados a partir da especificacao OpenAPI:
 
 ## Fluxo de Autenticacao
 
-O sistema usa autenticacao local com e-mail e senha (bcrypt). A sessao fica
-no servidor (colecao `sessions` do MongoDB) e o navegador recebe apenas o
-cookie `sid` (HttpOnly).
+O sistema aceita dois caminhos de autenticacao, e ambos terminam na **mesma**
+sessao server-side (colecao `sessions` do MongoDB) com o cookie `sid` (HttpOnly):
+
+1. **Login local** com e-mail e senha (bcrypt);
+2. **Login com Google** (OAuth 2.0, restrito ao Workspace pelo parametro `hd`
+   e validado no servidor).
 
 ```
 ┌─────────┐     ┌──────────────────┐     ┌──────────────┐     ┌──────────────┐
@@ -179,7 +192,17 @@ cookie `sid` (HttpOnly).
 ```
 
 O papel de coordenador (`isManager`) e lido do banco a cada requisicao, sem
-cache na sessao.
+cache na sessao. Quem se cadastra entra sempre como **empregado**
+(`isManager = false`) — o papel de coordenador e concedido pelo administrador.
+
+Regras complementares:
+
+- O acesso e restrito ao dominio corporativo (`ALLOWED_EMAIL_DOMAIN`, padrao
+  `tdztrading.com.br`) no login, no cadastro e na recuperacao de senha.
+- A sessao e invalidada quando o usuario deixa de existir no banco, e o
+  `expire` da sessao e limpo pelo TTL do MongoDB.
+- Trocar ou redefinir a senha revoga as outras sessoes do usuario.
+- O logout e feito por `POST /api/logout` (o `GET` esta depreciado).
 
 ## Modelo de Dados
 
@@ -211,20 +234,28 @@ pending ──▶ approved
 ## Seguranca
 
 ### Autenticacao
-- Login local com e-mail e senha (bcrypt, 12 rounds)
-- Sessoes com cookies HttpOnly (armazenadas no MongoDB)
+- Login local com e-mail e senha (bcrypt, 12 rounds) e login com Google (OAuth 2.0)
+- Dominio corporativo obrigatorio (`ALLOWED_EMAIL_DOMAIN`)
+- Politica de senha: minimo de 10 caracteres, 3 de 4 grupos de caracteres
+- Sessoes com cookies HttpOnly (armazenadas no MongoDB, com TTL)
+- Tokens de redefinição de senha guardados como hash SHA-256 (TTL de 1h)
+- Rate limit nas rotas de autenticacao (30/5 min no login, 10/15 min na recuperacao)
 - Suporte a tokens Bearer para integracoes moveis
 
 ### Autorizacao
 - Verificacao de sessao em rotas protegidas
-- Papel de gestor (isManager) para acoes administrativas
+- Sessao invalidada quando o usuario e removido do banco
+- Papel de gestor (isManager) para acoes administrativas, lido do banco a cada requisicao
 - Usuarios so podem ver/editar seus proprios dados
+- Restricoes por dono: excluir/cancelar férias, aprovar e vender dias sao do gestor
 
 ### Boas Praticas
-- CORS configurado
+- CORS com allowlist (`CORS_ORIGINS`)
+- Error handler JSON (sem HTML nem stack trace em producao)
 - Validacao de entrada com Zod
 - Logging estruturado com Pino
 - Variaveis de ambiente para configuracoes sensiveis
+- Testes unitarios (vitest) e CI com typecheck, lint e testes
 
 ## Escalabilidade
 

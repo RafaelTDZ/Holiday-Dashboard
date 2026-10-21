@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -44,8 +44,8 @@
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
-  --font-sans: 'Plus Jakarta Sans', sans-serif;
-  
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -55,30 +55,30 @@
 :root {
   --background: 210 40% 98%;
   --foreground: 222 47% 11%;
-  
+
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
   --card-border: 214 32% 91%;
-  
+
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
   --popover-border: 214 32% 91%;
-  
+
   --primary: 222 47% 11%;
   --primary-foreground: 210 40% 98%;
-  
+
   --secondary: 214 32% 91%;
   --secondary-foreground: 222 47% 11%;
-  
+
   --muted: 214 32% 91%;
   --muted-foreground: 215 16% 47%;
-  
+
   --accent: 199 89% 48%;
   --accent-foreground: 0 0% 100%;
-  
+
   --destructive: 0 84% 60%;
   --destructive-foreground: 210 40% 98%;
-  
+
   --border: 214 32% 91%;
   --input: 214 32% 91%;
   --ring: 222 47% 11%;
@@ -98,30 +98,30 @@
 .dark {
   --background: 222 47% 11%;
   --foreground: 210 40% 98%;
-  
+
   --card: 217 33% 17%;
   --card-foreground: 210 40% 98%;
   --card-border: 217 33% 25%;
-  
+
   --popover: 217 33% 17%;
   --popover-foreground: 210 40% 98%;
   --popover-border: 217 33% 25%;
-  
+
   --primary: 210 40% 98%;
   --primary-foreground: 222 47% 11%;
-  
+
   --secondary: 217 33% 17%;
   --secondary-foreground: 210 40% 98%;
-  
+
   --muted: 217 33% 17%;
   --muted-foreground: 215 20% 65%;
-  
+
   --accent: 199 89% 48%;
   --accent-foreground: 0 0% 100%;
-  
+
   --destructive: 0 62% 30%;
   --destructive-foreground: 210 40% 98%;
-  
+
   --border: 217 33% 25%;
   --input: 217 33% 25%;
   --ring: 210 40% 98%;

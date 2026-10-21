@@ -20,7 +20,8 @@ export async function sendPasswordResetEmail(
   to: string,
   resetUrl: string,
 ): Promise<void> {
-  const from = process.env.SMTP_FROM ?? process.env.SMTP_USER ?? "noreply@sistema.com";
+  const from =
+    process.env.SMTP_FROM ?? process.env.SMTP_USER ?? "noreply@sistema.com";
   const transporter = createTransport();
 
   const html = `
@@ -38,7 +39,12 @@ export async function sendPasswordResetEmail(
   `;
 
   if (transporter) {
-    await transporter.sendMail({ from, to, subject: "Redefinição de senha – Dashboard de Férias", html });
+    await transporter.sendMail({
+      from,
+      to,
+      subject: "Redefinição de senha – Dashboard de Férias",
+      html,
+    });
   } else {
     console.log("\n========= RESET DE SENHA (sem SMTP configurado) =========");
     console.log(`Para: ${to}`);

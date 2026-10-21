@@ -17,11 +17,11 @@ const counterSchema = new Schema(
   { collection: "counters", versionKey: false },
 );
 
-export const CounterModel = (models.Counter as Model<{
-  _id: string;
-  seq: number;
-}>) ??
-  model("Counter", counterSchema);
+export const CounterModel =
+  (models.Counter as Model<{
+    _id: string;
+    seq: number;
+  }>) ?? model("Counter", counterSchema);
 
 export async function nextSequence(name: string): Promise<number> {
   const counter = await CounterModel.findByIdAndUpdate(

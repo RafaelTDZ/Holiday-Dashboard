@@ -21,8 +21,8 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-    }
-  }
+    },
+  },
 });
 
 function Router() {
@@ -37,7 +37,10 @@ function Router() {
   }
 
   if (!isAuthenticated) {
-    const path = window.location.pathname.replace(import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "", "");
+    const path = window.location.pathname.replace(
+      import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "",
+      "",
+    );
     if (path.startsWith("/forgot-password")) return <ForgotPassword />;
     if (path.startsWith("/reset-password")) return <ResetPassword />;
     return <Login />;

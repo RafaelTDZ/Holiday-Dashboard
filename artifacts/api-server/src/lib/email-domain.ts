@@ -8,7 +8,9 @@ export function getAllowedEmailDomain(): string | null {
 
 export function getCompanyEmailError(): string {
   const domain = getAllowedEmailDomain();
-  return domain ? `Apenas e-mails @${domain} são permitidos.` : "E-mail inválido.";
+  return domain
+    ? `Apenas e-mails @${domain} são permitidos.`
+    : "E-mail inválido.";
 }
 
 export function isAllowedCompanyEmail(email: string): boolean {
