@@ -24,7 +24,7 @@ const employees = [
     role: "Coordenador",
     department: "RH",
     hireDate: "2020-01-15",
-    email: "admin@dashboard.com",
+    email: "admin@tdztrading.com.br",
     isManager: true,
   },
   {
@@ -32,7 +32,7 @@ const employees = [
     role: "Coordenador",
     department: "RH",
     hireDate: "2023-01-15",
-    email: "coord@dashboard.com",
+    email: "coord@tdztrading.com.br",
     isManager: true,
   },
   {
@@ -40,7 +40,7 @@ const employees = [
     role: "Analista",
     department: "Comercial",
     hireDate: "2024-03-10",
-    email: "joao@email.com",
+    email: "joao@tdztrading.com.br",
     isManager: false,
   },
   {
@@ -48,7 +48,7 @@ const employees = [
     role: "Designer",
     department: "Operacional",
     hireDate: "2024-06-01",
-    email: "maria@email.com",
+    email: "maria@tdztrading.com.br",
     isManager: false,
   },
   {
@@ -56,7 +56,7 @@ const employees = [
     role: "Desenvolvedor",
     department: "Financeiro",
     hireDate: "2024-09-20",
-    email: "pedro@email.com",
+    email: "pedro@tdztrading.com.br",
     isManager: false,
   },
 ];

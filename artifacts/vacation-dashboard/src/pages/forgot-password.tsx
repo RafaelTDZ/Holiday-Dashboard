@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Briefcase, Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import { getApiBase, getAppBase } from "@/utils/api";
+import { getAllowedEmailDomain, getCompanyEmailError, isAllowedCompanyEmail } from "@/utils/email";
+import * as z from "zod";
 
 export default function ForgotPassword() {
   const loginUrl = getAppBase();
@@ -18,6 +20,17 @@ export default function ForgotPassword() {
     setError("");
     setLoading(true);
     try {
+      const domain = getAllowedEmailDomain();
+      const emailSchema = z.string().email().refine((val) => !domain || isAllowedCompanyEmail(val), {
+        message: getCompanyEmailError(),
+      });
+      const result = emailSchema.safeParse(email);
+      if (!result.success) {
+        setError(result.error.errors[0].message);
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch(`${getApiBase()}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -75,13 +88,18 @@ export default function ForgotPassword() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="voce@empresa.com"
+                    placeholder={getAllowedEmailDomain() ? `voce@${getAllowedEmailDomain()}` : "voce@empresa.com"}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={loading}
                     data-testid="input-email-forgot"
                   />
+                  {getAllowedEmailDomain() && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Somente e-mails @{getAllowedEmailDomain()} são permitidos.
+                    </p>
+                  )}
                 </div>
 
                 {error && (

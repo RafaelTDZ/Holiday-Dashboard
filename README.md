@@ -34,8 +34,9 @@ aprovações e avisos automáticos.
 | Variável | Onde é usada | Descrição |
 | --- | --- | --- |
 | `MONGODB_URI` | API | String de conexão do MongoDB (Atlas) |
-| `ADMIN_EMAIL` | API | E-mail do coordenador criado/promovido no primeiro acesso |
+| `ADMIN_EMAIL` | API | E-mail do coordenador criado/promovido no primeiro acesso (ex.: `admin@tdztrading.com.br`) |
 | `ADMIN_PASSWORD` | API | Senha desse coordenador (mínimo 6 caracteres) |
+| `ALLOWED_EMAIL_DOMAIN` | API + Frontend | Domínio corporativo liberado para login, cadastro e recuperação de senha (padrão `tdztrading.com.br`; use `*` para desativar a restrição) |
 | `APP_URL` | API | URL pública do app, usada no link de redefinição de senha |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | API | Envio de e-mail (opcional; sem SMTP o link é impresso no log) |
 | `PORT` / `BASE_PATH` | Frontend | Porta e base path do Vite (padrões: `3000` e `/`) |
@@ -137,7 +138,8 @@ Configure no painel da Vercel (Production e Preview):
 | Variável | Valor |
 | --- | --- |
 | `MONGODB_URI` | String de conexão do MongoDB Atlas (já configurada) |
-| `ADMIN_EMAIL` | E-mail do coordenador (ex.: `admin@dashboard.com`) |
+| `ADMIN_EMAIL` | E-mail do coordenador (ex.: `admin@tdztrading.com.br`) |
+| `ALLOWED_EMAIL_DOMAIN` | `tdztrading.com.br` (ou `*` para desativar a restrição) |
 | `ADMIN_PASSWORD` | Senha desse coordenador |
 | `APP_URL` | URL pública do app |
 | `SEED_DEMO_DATA` | `true` para popular o conjunto de demonstração |
@@ -145,6 +147,8 @@ Configure no painel da Vercel (Production e Preview):
 `ADMIN_EMAIL`/`ADMIN_PASSWORD` criam (ou promovem) o coordinator no primeiro
 acesso. Com `SEED_DEMO_DATA=true` o conjunto de demonstração também é criado
 de forma idempotente — os demais usuários usam a senha `senha123`.
+
+> Restrição de acesso: com `ALLOWED_EMAIL_DOMAIN=tdztrading.com.br`, apenas e-mails desse domínio podem fazer login, cadastro ou solicitar redefinição de senha. Se precisar abrir para testes, defina `ALLOWED_EMAIL_DOMAIN=*`.
 
 
 ## Contrato da API

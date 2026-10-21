@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Briefcase, Eye, EyeOff, Loader2 } from "lucide-react";
@@ -6,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { getApiBase, getAppBase } from "@/utils/api";
+import { getAllowedEmailDomain, getCompanyEmailError, isAllowedCompanyEmail } from "@/utils/email";
 
 export default function Login() {
   const { toast } = useToast();
@@ -21,6 +23,20 @@ export default function Login() {
     setLoading(true);
 
     try {
+      const domain = getAllowedEmailDomain();
+      const emailSchema = z
+        .string()
+        .email()
+        .refine((val) => !domain || isAllowedCompanyEmail(val), {
+          message: getCompanyEmailError(),
+        });
+      const result = emailSchema.safeParse(email);
+      if (!result.success) {
+        toast({ variant: "destructive", title: "Erro", description: result.error.errors[0].message });
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch(`${getApiBase()}/auth/login-local`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -68,13 +84,18 @@ export default function Login() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="voce@empresa.com"
+                  placeholder={getAllowedEmailDomain() ? `voce@${getAllowedEmailDomain()}` : "voce@empresa.com"}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={loading}
                   data-testid="input-email"
                 />
+                {getAllowedEmailDomain() && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Somente e-mails @{getAllowedEmailDomain()} são permitidos.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">

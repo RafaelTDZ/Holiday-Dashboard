@@ -20,6 +20,7 @@ const basePath = process.env.BASE_PATH ?? "/";
 const apiProxyTarget = process.env.API_PROXY_TARGET ?? "http://localhost:8080";
 
 export default defineConfig({
+  envPrefix: ["VITE_", "ALLOWED_"],
   base: basePath,
   plugins: [
     react(),

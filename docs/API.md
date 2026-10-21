@@ -62,8 +62,8 @@ Cria uma conta com e-mail e senha e inicia a sessao.
 
 **Resposta 200:** `{ "ok": true }` (e o cookie de sessao `sid`)
 
-**Resposta 400:** e-mail invalido ou senha com menos de 6 caracteres
-**Resposta 409:** o e-mail ja esta cadastrado
+**Resposta 400:** e-mail inválido, fora do domínio corporativo permitido (`ALLOWED_EMAIL_DOMAIN`) ou senha com menos de 6 caracteres
+**Resposta 409:** o e-mail já está cadastrado
 
 ---
 
@@ -78,6 +78,8 @@ Autentica com e-mail e senha.
 
 **Resposta 200:** `{ "ok": true }` (e o cookie de sessao `sid`)
 
+**Resposta 400:** e-mail fora do domínio permitido (`ALLOWED_EMAIL_DOMAIN`) ou credenciais faltantes
+
 **Resposta 401:** e-mail ou senha incorretos
 
 ---
@@ -90,6 +92,8 @@ quando o e-mail nao esta cadastrado (para nao revelar quem tem conta).
 **Corpo:** `{ "email": "user@example.com" }`
 
 **Resposta 200:** `{ "ok": true }`
+
+**Resposta 400:** e-mail fora do domínio permitido (`ALLOWED_EMAIL_DOMAIN`)
 
 ---
 

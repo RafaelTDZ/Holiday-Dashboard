@@ -5,6 +5,11 @@ import { UserModel, PasswordResetTokenModel } from "@workspace/db";
 import { randomBytes } from "crypto";
 import { sendPasswordResetEmail } from "../lib/email";
 import {
+  getAllowedEmailDomain,
+  getCompanyEmailError,
+  isAllowedCompanyEmail,
+} from "../lib/email-domain";
+import {
   clearSession,
   getSessionId,
   getSession,
@@ -80,6 +85,10 @@ router.post(
       res.status(400).json({ error: "E-mail inválido." });
       return;
     }
+    if (!isAllowedCompanyEmail(email)) {
+      res.status(400).json({ error: getCompanyEmailError() });
+      return;
+    }
     if (!password || password.length < 6) {
       res.status(400).json({ error: "A senha deve ter no mínimo 6 caracteres." });
       return;
@@ -121,6 +130,11 @@ router.post(
       return;
     }
 
+    if (!isAllowedCompanyEmail(email)) {
+      res.status(400).json({ error: getCompanyEmailError() });
+      return;
+    }
+
     const normalizedEmail = email.toLowerCase().trim();
     const user = await UserModel.findOne({ email: normalizedEmail });
 
@@ -153,6 +167,11 @@ router.post(
     const { email } = req.body ?? {};
     if (!email || typeof email !== "string") {
       res.status(400).json({ error: "E-mail é obrigatório." });
+      return;
+    }
+
+    if (!isAllowedCompanyEmail(email)) {
+      res.status(400).json({ error: getCompanyEmailError() });
       return;
     }
 

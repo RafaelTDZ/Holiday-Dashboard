@@ -80,7 +80,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/OkEnvelope"
         '400':
-          description: Invalid e-mail or password.
+          description: Invalid e-mail, e-mail outside the allowed company domain, or password.
           content:
             application/json:
               schema:
@@ -110,7 +110,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/OkEnvelope"
         '400':
-          description: Missing credentials.
+          description: Missing credentials or e-mail outside the allowed company domain.
           content:
             application/json:
               schema:
@@ -140,7 +140,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/OkEnvelope"
         '400':
-          description: Missing e-mail.
+          description: Missing e-mail or e-mail outside the allowed company domain.
           content:
             application/json:
               schema:
