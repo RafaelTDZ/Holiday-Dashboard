@@ -26,6 +26,11 @@ import {
   isGoogleAuthEnabled,
   verifyGoogleCode,
 } from "../lib/google-auth";
+import { validatePassword } from "../lib/password-policy";
+import {
+  authRateLimiter,
+  passwordResetRateLimiter,
+} from "../middlewares/rate-limit";
 
 const router: IRouter = Router();
 
@@ -60,6 +65,23 @@ function isValidEmail(email: string): boolean {
  */
 export function hashResetToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * Resolves the e-mail of a user from its id. Used by the password-reset
+ * flow, where the e-mail is not part of the request body.
+ *
+ * Any failure (invalid id, user deleted, database down) is logged and
+ * results in `null`: the reset must not break because of this lookup.
+ */
+async function findAccountEmail(userId: string): Promise<string | null> {
+  try {
+    const user = await UserModel.findById(userId).select("email").lean();
+    return user?.email ?? null;
+  } catch (err) {
+    logger.warn({ err }, "Could not resolve the account e-mail of the reset");
+    return null;
+  }
 }
 
 function toAuthUser(user: {
@@ -194,6 +216,7 @@ router.get("/logout", async (req: Request, res: Response) => {
 
 router.post(
   "/auth/register-local",
+  authRateLimiter,
   async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body ?? {};
 
@@ -205,12 +228,14 @@ router.post(
       res.status(400).json({ error: getCompanyEmailError() });
       return;
     }
-    if (!password || password.length < 6) {
-      res.status(400).json({ error: "A senha deve ter no mínimo 6 caracteres." });
-      return;
-    }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    const passwordCheck = validatePassword(password, normalizedEmail);
+    if (!passwordCheck.valid) {
+      res.status(400).json({ error: passwordCheck.message });
+      return;
+    }
 
     const existing = await UserModel.findOne({ email: normalizedEmail });
     if (existing) {
@@ -238,6 +263,7 @@ router.post(
 
 router.post(
   "/auth/login-local",
+  authRateLimiter,
   async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body ?? {};
 
@@ -279,6 +305,7 @@ router.post(
 
 router.post(
   "/auth/forgot-password",
+  passwordResetRateLimiter,
   async (req: Request, res: Response): Promise<void> => {
     const { email } = req.body ?? {};
     if (!email || typeof email !== "string") {
@@ -324,6 +351,7 @@ router.post(
 
 router.post(
   "/auth/reset-password",
+  authRateLimiter,
   async (req: Request, res: Response): Promise<void> => {
     const { token, password } = req.body ?? {};
     if (!token || !password || typeof token !== "string" || typeof password !== "string") {
@@ -331,8 +359,9 @@ router.post(
       return;
     }
 
-    if (password.length < 6) {
-      res.status(400).json({ error: "A nova senha deve ter pelo menos 6 caracteres." });
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.valid) {
+      res.status(400).json({ error: passwordCheck.message });
       return;
     }
 
@@ -346,6 +375,18 @@ router.post(
     if (!record) {
       res.status(400).json({ error: "Link de redefinição inválido ou expirado." });
       return;
+    }
+
+    // O e-mail do usuário não faz parte do corpo da requisição: ele é
+    // resolvido a partir do token para que a regra "a senha não pode conter o
+    // e-mail" também valha na redefinição de senha.
+    const accountEmail = await findAccountEmail(record.userId);
+    if (accountEmail) {
+      const emailCheck = validatePassword(password, accountEmail);
+      if (!emailCheck.valid) {
+        res.status(400).json({ error: emailCheck.message });
+        return;
+      }
     }
 
     const passwordHash = await bcrypt.hash(password, 12);

@@ -14,6 +14,7 @@ import {
 } from "@workspace/api-zod";
 import { calculateVacationStats, vacationDurationDays } from "../lib/vacation-utils";
 import { getSessionId } from "../lib/auth";
+import { validatePassword } from "../lib/password-policy";
 
 const toDateStr = (d: Date | string): string => {
   if (typeof d === "string") {
@@ -341,14 +342,23 @@ router.put("/employees/:id/password", async (req: Request, res: Response): Promi
 
   const { currentPassword, newPassword } = req.body ?? {};
 
-  if (typeof newPassword !== "string" || newPassword.length < 6) {
-    res.status(400).json({ error: "A nova senha deve ter no mínimo 6 caracteres." });
+  if (typeof newPassword !== "string") {
+    res.status(400).json({ error: "A nova senha é obrigatória." });
     return;
   }
 
   const user = await UserModel.findById(emp.userId).lean();
   if (!user) {
     res.status(404).json({ error: "Usuário não encontrado." });
+    return;
+  }
+
+  // A senha nova passa pela mesma política aplicada no cadastro e na
+  // redefinição de senha (mínimo de 10 caracteres, 3 de 4 grupos de
+  // caracteres e proibido usar o e-mail da conta).
+  const newPasswordCheck = validatePassword(newPassword, user.email);
+  if (!newPasswordCheck.valid) {
+    res.status(400).json({ error: newPasswordCheck.message });
     return;
   }
 

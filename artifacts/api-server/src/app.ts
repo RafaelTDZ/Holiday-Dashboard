@@ -11,6 +11,13 @@ import { ensureBootstrapAdmin } from "./lib/bootstrap";
 
 const app: Express = express();
 
+// The app runs behind a single proxy (the Vercel edge) in production, so
+// `req.ip` has to be resolved from `X-Forwarded-For` — otherwise every
+// request would be attributed to the proxy and the rate limiter would treat
+// all users as one client. Trusting a single hop keeps the last entry of the
+// header (the real client) while still ignoring anything the client forged.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,
