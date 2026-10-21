@@ -22,21 +22,30 @@ import type {
   CompleteGoogleLoginParams,
   CreateEmployeeBody,
   CreateVacationBody,
+  CreateVacationSaleBody,
   DashboardSummary,
   EmailBody,
   EmployeeDetail,
   ErrorEnvelope,
   HealthStatus,
+  ListAllVacationsResponse,
   ListEmployeesResponse,
+  ListNotificationsResponse,
+  ListVacationSalesResponse,
+  ListVacationsParams,
   ListVacationsResponse,
   LocalCredentialsBody,
+  MessageEnvelope,
   MyEmployeeEnvelope,
   OkEnvelope,
   RegisterEmployeeBody,
   ResetPasswordBody,
   UpdateEmployeeBody,
+  UpdateEmployeePasswordBody,
+  UpdateVacationBody,
   UpdateVacationStatusBody,
   VacationItem,
+  VacationSale,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -273,6 +282,88 @@ export function useLogoutBrowserSession<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Deletes the session record and clears the session cookie without redirecting the browser. This is the preferred way to sign out.
+ * @summary End the current session
+ */
+export const getLogoutSessionUrl = () => {
+  return `/api/logout`;
+};
+
+export const logoutSession = async (
+  options?: RequestInit,
+): Promise<OkEnvelope> => {
+  return customFetch<OkEnvelope>(getLogoutSessionUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLogoutSessionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logoutSession>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof logoutSession>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["logoutSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof logoutSession>>,
+    void
+  > = () => {
+    return logoutSession(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LogoutSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof logoutSession>>
+>;
+
+export type LogoutSessionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary End the current session
+ */
+export const useLogoutSession = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logoutSession>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof logoutSession>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getLogoutSessionMutationOptions(options));
+};
 
 /**
  * @summary List the external login providers configured in the API
@@ -1463,6 +1554,544 @@ export const useCreateVacation = <
 };
 
 /**
+ * Changes the password of the account linked to the employee. The employee may change their own password (sending `currentPassword`) and managers may change the password of any employee. Changing the password revokes every other session of the account and invalidates the pending password reset tokens of that account.
+ * @summary Change the password of an employee
+ */
+export const getUpdateEmployeePasswordUrl = (id: number) => {
+  return `/api/employees/${id}/password`;
+};
+
+export const updateEmployeePassword = async (
+  id: number,
+  updateEmployeePasswordBody: UpdateEmployeePasswordBody,
+  options?: RequestInit,
+): Promise<MessageEnvelope> => {
+  return customFetch<MessageEnvelope>(getUpdateEmployeePasswordUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateEmployeePasswordBody),
+  });
+};
+
+export const getUpdateEmployeePasswordMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateEmployeePassword>>,
+    TError,
+    { id: number; data: BodyType<UpdateEmployeePasswordBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateEmployeePassword>>,
+  TError,
+  { id: number; data: BodyType<UpdateEmployeePasswordBody> },
+  TContext
+> => {
+  const mutationKey = ["updateEmployeePassword"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateEmployeePassword>>,
+    { id: number; data: BodyType<UpdateEmployeePasswordBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateEmployeePassword(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateEmployeePasswordMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateEmployeePassword>>
+>;
+export type UpdateEmployeePasswordMutationBody =
+  BodyType<UpdateEmployeePasswordBody>;
+export type UpdateEmployeePasswordMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Change the password of an employee
+ */
+export const useUpdateEmployeePassword = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateEmployeePassword>>,
+    TError,
+    { id: number; data: BodyType<UpdateEmployeePasswordBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateEmployeePassword>>,
+  TError,
+  { id: number; data: BodyType<UpdateEmployeePasswordBody> },
+  TContext
+> => {
+  return useMutation(getUpdateEmployeePasswordMutationOptions(options));
+};
+
+/**
+ * @summary List the vacation days sold by an employee
+ */
+export const getListEmployeeVacationSalesUrl = (id: number) => {
+  return `/api/employees/${id}/vacation-sales`;
+};
+
+export const listEmployeeVacationSales = async (
+  id: number,
+  options?: RequestInit,
+): Promise<ListVacationSalesResponse> => {
+  return customFetch<ListVacationSalesResponse>(
+    getListEmployeeVacationSalesUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListEmployeeVacationSalesQueryKey = (id: number) => {
+  return [`/api/employees/${id}/vacation-sales`] as const;
+};
+
+export const getListEmployeeVacationSalesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listEmployeeVacationSales>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEmployeeVacationSales>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListEmployeeVacationSalesQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listEmployeeVacationSales>>
+  > = ({ signal }) =>
+    listEmployeeVacationSales(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listEmployeeVacationSales>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListEmployeeVacationSalesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listEmployeeVacationSales>>
+>;
+export type ListEmployeeVacationSalesQueryError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary List the vacation days sold by an employee
+ */
+
+export function useListEmployeeVacationSales<
+  TData = Awaited<ReturnType<typeof listEmployeeVacationSales>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listEmployeeVacationSales>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListEmployeeVacationSalesQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Registers the sale of vacation days of an employee. The sold amount cannot exceed the current balance and is limited to one third of the accrual period (10 of 30 days) per operation.
+ * @summary Register a sale of vacation days for an employee (managers only)
+ */
+export const getCreateVacationSaleUrl = (id: number) => {
+  return `/api/employees/${id}/vacation-sales`;
+};
+
+export const createVacationSale = async (
+  id: number,
+  createVacationSaleBody: CreateVacationSaleBody,
+  options?: RequestInit,
+): Promise<VacationSale> => {
+  return customFetch<VacationSale>(getCreateVacationSaleUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createVacationSaleBody),
+  });
+};
+
+export const getCreateVacationSaleMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createVacationSale>>,
+    TError,
+    { id: number; data: BodyType<CreateVacationSaleBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createVacationSale>>,
+  TError,
+  { id: number; data: BodyType<CreateVacationSaleBody> },
+  TContext
+> => {
+  const mutationKey = ["createVacationSale"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createVacationSale>>,
+    { id: number; data: BodyType<CreateVacationSaleBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return createVacationSale(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateVacationSaleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createVacationSale>>
+>;
+export type CreateVacationSaleMutationBody = BodyType<CreateVacationSaleBody>;
+export type CreateVacationSaleMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Register a sale of vacation days for an employee (managers only)
+ */
+export const useCreateVacationSale = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createVacationSale>>,
+    TError,
+    { id: number; data: BodyType<CreateVacationSaleBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createVacationSale>>,
+  TError,
+  { id: number; data: BodyType<CreateVacationSaleBody> },
+  TContext
+> => {
+  return useMutation(getCreateVacationSaleMutationOptions(options));
+};
+
+/**
+ * Deletes a vacation sale and returns the sold days to the balance of the employee. The record is located by its own `saleId`; the `id` of the path is the employee the sale belongs to and is not used to filter the deletion.
+ * @summary Delete a vacation sale record (managers only)
+ */
+export const getDeleteVacationSaleUrl = (id: number, saleId: number) => {
+  return `/api/employees/${id}/vacation-sales/${saleId}`;
+};
+
+export const deleteVacationSale = async (
+  id: number,
+  saleId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteVacationSaleUrl(id, saleId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteVacationSaleMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteVacationSale>>,
+    TError,
+    { id: number; saleId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteVacationSale>>,
+  TError,
+  { id: number; saleId: number },
+  TContext
+> => {
+  const mutationKey = ["deleteVacationSale"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteVacationSale>>,
+    { id: number; saleId: number }
+  > = (props) => {
+    const { id, saleId } = props ?? {};
+
+    return deleteVacationSale(id, saleId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteVacationSaleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteVacationSale>>
+>;
+
+export type DeleteVacationSaleMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Delete a vacation sale record (managers only)
+ */
+export const useDeleteVacationSale = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteVacationSale>>,
+    TError,
+    { id: number; saleId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteVacationSale>>,
+  TError,
+  { id: number; saleId: number },
+  TContext
+> => {
+  return useMutation(getDeleteVacationSaleMutationOptions(options));
+};
+
+/**
+ * Lists every vacation record, including the name and the department of the employee it belongs to.
+ * @summary List all vacations
+ */
+export const getListVacationsUrl = (params?: ListVacationsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/vacations?${stringifiedParams}`
+    : `/api/vacations`;
+};
+
+export const listVacations = async (
+  params?: ListVacationsParams,
+  options?: RequestInit,
+): Promise<ListAllVacationsResponse> => {
+  return customFetch<ListAllVacationsResponse>(getListVacationsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListVacationsQueryKey = (params?: ListVacationsParams) => {
+  return [`/api/vacations`, ...(params ? [params] : [])] as const;
+};
+
+export const getListVacationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listVacations>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  params?: ListVacationsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listVacations>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListVacationsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listVacations>>> = ({
+    signal,
+  }) => listVacations(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listVacations>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListVacationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listVacations>>
+>;
+export type ListVacationsQueryError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary List all vacations
+ */
+
+export function useListVacations<
+  TData = Awaited<ReturnType<typeof listVacations>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(
+  params?: ListVacationsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listVacations>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListVacationsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Edits the period of a vacation request. Only the employee that owns the request can edit it and only while the request is still pending. The new period cannot overlap another pending or approved vacation of the same employee.
+ * @summary Edit a pending vacation request
+ */
+export const getUpdateVacationUrl = (id: number) => {
+  return `/api/vacations/${id}`;
+};
+
+export const updateVacation = async (
+  id: number,
+  updateVacationBody: UpdateVacationBody,
+  options?: RequestInit,
+): Promise<VacationItem> => {
+  return customFetch<VacationItem>(getUpdateVacationUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateVacationBody),
+  });
+};
+
+export const getUpdateVacationMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateVacation>>,
+    TError,
+    { id: number; data: BodyType<UpdateVacationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateVacation>>,
+  TError,
+  { id: number; data: BodyType<UpdateVacationBody> },
+  TContext
+> => {
+  const mutationKey = ["updateVacation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateVacation>>,
+    { id: number; data: BodyType<UpdateVacationBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateVacation(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateVacationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateVacation>>
+>;
+export type UpdateVacationMutationBody = BodyType<UpdateVacationBody>;
+export type UpdateVacationMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Edit a pending vacation request
+ */
+export const useUpdateVacation = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateVacation>>,
+    TError,
+    { id: number; data: BodyType<UpdateVacationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateVacation>>,
+  TError,
+  { id: number; data: BodyType<UpdateVacationBody> },
+  TContext
+> => {
+  return useMutation(getUpdateVacationMutationOptions(options));
+};
+
+/**
  * @summary Delete a vacation period
  */
 export const getDeleteVacationUrl = (id: number) => {
@@ -1868,4 +2497,245 @@ export const useRegisterAsEmployee = <
   TContext
 > => {
   return useMutation(getRegisterAsEmployeeMutationOptions(options));
+};
+
+/**
+ * Returns the 30 most recent notifications of the authenticated user, newest first.
+ * @summary List the notifications of the current user
+ */
+export const getListNotificationsUrl = () => {
+  return `/api/notifications`;
+};
+
+export const listNotifications = async (
+  options?: RequestInit,
+): Promise<ListNotificationsResponse> => {
+  return customFetch<ListNotificationsResponse>(getListNotificationsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListNotificationsQueryKey = () => {
+  return [`/api/notifications`] as const;
+};
+
+export const getListNotificationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listNotifications>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listNotifications>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListNotificationsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listNotifications>>
+  > = ({ signal }) => listNotifications({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listNotifications>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListNotificationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listNotifications>>
+>;
+export type ListNotificationsQueryError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary List the notifications of the current user
+ */
+
+export function useListNotifications<
+  TData = Awaited<ReturnType<typeof listNotifications>>,
+  TError = ErrorType<ErrorEnvelope>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listNotifications>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListNotificationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Mark every notification of the current user as read
+ */
+export const getMarkAllNotificationsAsReadUrl = () => {
+  return `/api/notifications/read-all`;
+};
+
+export const markAllNotificationsAsRead = async (
+  options?: RequestInit,
+): Promise<OkEnvelope> => {
+  return customFetch<OkEnvelope>(getMarkAllNotificationsAsReadUrl(), {
+    ...options,
+    method: "PUT",
+  });
+};
+
+export const getMarkAllNotificationsAsReadMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markAllNotificationsAsRead>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof markAllNotificationsAsRead>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["markAllNotificationsAsRead"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof markAllNotificationsAsRead>>,
+    void
+  > = () => {
+    return markAllNotificationsAsRead(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MarkAllNotificationsAsReadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof markAllNotificationsAsRead>>
+>;
+
+export type MarkAllNotificationsAsReadMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Mark every notification of the current user as read
+ */
+export const useMarkAllNotificationsAsRead = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markAllNotificationsAsRead>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof markAllNotificationsAsRead>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getMarkAllNotificationsAsReadMutationOptions(options));
+};
+
+/**
+ * @summary Mark a single notification of the current user as read
+ */
+export const getMarkNotificationAsReadUrl = (id: number) => {
+  return `/api/notifications/${id}/read`;
+};
+
+export const markNotificationAsRead = async (
+  id: number,
+  options?: RequestInit,
+): Promise<OkEnvelope> => {
+  return customFetch<OkEnvelope>(getMarkNotificationAsReadUrl(id), {
+    ...options,
+    method: "PUT",
+  });
+};
+
+export const getMarkNotificationAsReadMutationOptions = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markNotificationAsRead>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof markNotificationAsRead>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["markNotificationAsRead"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof markNotificationAsRead>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return markNotificationAsRead(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MarkNotificationAsReadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof markNotificationAsRead>>
+>;
+
+export type MarkNotificationAsReadMutationError = ErrorType<ErrorEnvelope>;
+
+/**
+ * @summary Mark a single notification of the current user as read
+ */
+export const useMarkNotificationAsRead = <
+  TError = ErrorType<ErrorEnvelope>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markNotificationAsRead>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof markNotificationAsRead>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getMarkNotificationAsReadMutationOptions(options));
 };

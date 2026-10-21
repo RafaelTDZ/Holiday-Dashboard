@@ -53,6 +53,10 @@ export const OkEnvelopeValue = {
 } as const;
 export type OkEnvelope = typeof OkEnvelopeValue;
 
+export interface MessageEnvelope {
+  message: string;
+}
+
 export interface ErrorEnvelope {
   error: string;
 }
@@ -64,13 +68,19 @@ export interface EmployeeWithBalance {
   department: string;
   hireDate: string;
   createdAt: string;
-  /** Available vacation days (earned - taken) */
+  /** Available vacation days (earned - taken - sold) */
   vacationBalanceDays: number;
-  /** Days until next vacation period starts (or 0 if vacation is now due) */
+  /** Days until the next accrual anniversary (the day the balance grows again) */
   daysUntilNextVacation: number;
   isOnVacation: boolean;
   /** @nullable */
   nextVacationStart: string | null;
+  /** Whether the employee already reached the minimum balance to request a vacation */
+  eligibleForVacation?: boolean;
+  /** First date on which the employee reached the minimum balance */
+  firstEligibilityDate?: string;
+  /** Vacation days already sold by the employee */
+  daysSold?: number;
 }
 
 export interface VacationSale {
@@ -81,6 +91,21 @@ export interface VacationSale {
   /** @nullable */
   notes?: string | null;
   createdAt?: string;
+}
+
+export interface ListVacationSalesResponse {
+  vacationSales: VacationSale[];
+}
+
+export interface CreateVacationSaleBody {
+  /**
+   * Sold vacation days. It cannot exceed the current balance nor one third of the accrual period (10 of 30 days).
+   * @minimum 1
+   */
+  daysSold: number;
+  saleDate: string;
+  /** @nullable */
+  notes?: string | null;
 }
 
 export type VacationItemStatus =
@@ -162,8 +187,63 @@ export interface UpdateEmployeeBody {
   hireDate?: string;
 }
 
+export interface UpdateEmployeePasswordBody {
+  /** Current password. Required when the employee changes their own password. */
+  currentPassword?: string;
+  /**
+   * New password. It must follow the password policy (at least 10 characters, 3 of the 4 character groups and it cannot contain the e-mail of the account).
+   * @minLength 10
+   */
+  newPassword: string;
+}
+
 export interface ListVacationsResponse {
   vacations: VacationItem[];
+}
+
+export type VacationWithEmployeeStatus =
+  (typeof VacationWithEmployeeStatus)[keyof typeof VacationWithEmployeeStatus];
+
+export const VacationWithEmployeeStatus = {
+  pending: "pending",
+  approved: "approved",
+  rejected: "rejected",
+} as const;
+
+export interface VacationWithEmployee {
+  id: number;
+  employeeId: number;
+  startDate: string;
+  endDate: string;
+  durationDays: number;
+  /** @nullable */
+  notes: string | null;
+  status: VacationWithEmployeeStatus;
+  createdAt: string;
+  /** @nullable */
+  employeeName: string | null;
+  /** @nullable */
+  employeeDepartment: string | null;
+}
+
+export interface ListAllVacationsResponse {
+  vacations: VacationWithEmployee[];
+}
+
+export interface Notification {
+  id: number;
+  userId: string;
+  message: string;
+  read: boolean;
+  /** @nullable */
+  vacationId: number | null;
+  /** @nullable */
+  employeeId: number | null;
+  createdAt: string;
+}
+
+export interface ListNotificationsResponse {
+  notifications: Notification[];
 }
 
 export type UpdateVacationStatusBodyStatus =
@@ -179,6 +259,13 @@ export interface UpdateVacationStatusBody {
 }
 
 export interface CreateVacationBody {
+  startDate: string;
+  endDate: string;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface UpdateVacationBody {
   startDate: string;
   endDate: string;
   /** @nullable */
@@ -220,4 +307,11 @@ export type CompleteGoogleLoginParams = {
   code?: string;
   state?: string;
   error?: string;
+};
+
+export type ListVacationsParams = {
+  /**
+   * Filters the list by status (`pending`, `approved` or `rejected`). When omitted, every status is returned.
+   */
+  status?: string;
 };

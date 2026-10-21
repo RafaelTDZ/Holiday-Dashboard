@@ -20,6 +20,8 @@ tags:
     description: Dashboard summary
   - name: me
     description: Current user profile and self-registration
+  - name: notifications
+    description: Notification center of the current user
 paths:
   /healthz:
     get:
@@ -61,6 +63,23 @@ paths:
       responses:
         '302':
           description: Redirect to the application root.
+    post:
+      tags: [Auth]
+      operationId: logoutSession
+      summary: End the current session
+      description: >-
+        Deletes the session record and clears the session cookie without
+        redirecting the browser. This is the preferred way to sign out.
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Session ended.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkEnvelope"
   /auth/providers:
     get:
       tags: [Auth]
@@ -424,7 +443,274 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /employees/{id}/password:
+    put:
+      operationId: updateEmployeePassword
+      tags: [employees]
+      summary: Change the password of an employee
+      description: >-
+        Changes the password of the account linked to the employee. The
+        employee may change their own password (sending `currentPassword`) and
+        managers may change the password of any employee. Changing the password
+        revokes every other session of the account and invalidates the pending
+        password reset tokens of that account.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEmployeePasswordBody"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageEnvelope"
+        "400":
+          description: Invalid employee ID, missing new password, new password rejected by the password policy or wrong current password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Forbidden - only the employee itself or a manager can change the password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Employee or linked user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /employees/{id}/vacation-sales:
+    get:
+      operationId: listEmployeeVacationSales
+      tags: [vacations]
+      summary: List the vacation days sold by an employee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of vacation sales
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListVacationSalesResponse"
+        "400":
+          description: Invalid employee ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: createVacationSale
+      tags: [vacations]
+      summary: Register a sale of vacation days for an employee (managers only)
+      description: >-
+        Registers the sale of vacation days of an employee. The sold amount
+        cannot exceed the current balance and is limited to one third of the
+        accrual period (10 of 30 days) per operation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVacationSaleBody"
+      responses:
+        "201":
+          description: Vacation sale registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VacationSale"
+        "400":
+          description: Invalid input, insufficient balance or the per-operation limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Forbidden - manager role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Employee not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /employees/{id}/vacation-sales/{saleId}:
+    delete:
+      operationId: deleteVacationSale
+      tags: [vacations]
+      summary: Delete a vacation sale record (managers only)
+      description: >-
+        Deletes a vacation sale and returns the sold days to the balance of the
+        employee. The record is located by its own `saleId`; the `id` of the
+        path is the employee the sale belongs to and is not used to filter the
+        deletion.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: saleId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Vacation sale deleted
+        "400":
+          description: Invalid sale ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Forbidden - manager role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Vacation sale not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /vacations:
+    get:
+      operationId: listVacations
+      tags: [vacations]
+      summary: List all vacations
+      description: >-
+        Lists every vacation record, including the name and the department of
+        the employee it belongs to.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filters the list by status (`pending`, `approved` or `rejected`). When omitted, every status is returned.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of vacations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListAllVacationsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /vacations/{id}:
+    put:
+      operationId: updateVacation
+      tags: [vacations]
+      summary: Edit a pending vacation request
+      description: >-
+        Edits the period of a vacation request. Only the employee that owns the
+        request can edit it and only while the request is still pending. The
+        new period cannot overlap another pending or approved vacation of the
+        same employee.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateVacationBody"
+      responses:
+        "200":
+          description: Vacation updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VacationItem"
+        "400":
+          description: Invalid input, missing dates, end date before the start date or overlapping period
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Forbidden - only the owner can edit a pending request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
     delete:
       operationId: deleteVacation
       tags: [vacations]
@@ -556,6 +842,82 @@ paths:
         '401':
           description: Unauthorized
 
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List the notifications of the current user
+      description: Returns the 30 most recent notifications of the authenticated user, newest first.
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListNotificationsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /notifications/read-all:
+    put:
+      operationId: markAllNotificationsAsRead
+      tags: [notifications]
+      summary: Mark every notification of the current user as read
+      responses:
+        "200":
+          description: Notifications marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /notifications/{id}/read:
+    put:
+      operationId: markNotificationAsRead
+      tags: [notifications]
+      summary: Mark a single notification of the current user as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkEnvelope"
+        "400":
+          description: Invalid notification ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
 components:
   parameters:
     AuthorizationSessionHeader:
@@ -648,6 +1010,12 @@ components:
         ok:
           type: boolean
           const: true
+    MessageEnvelope:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
     ErrorEnvelope:
       type: object
       required: [error]
@@ -674,16 +1042,26 @@ components:
           type: string
           format: date-time
         vacationBalanceDays:
-          type: integer
-          description: Available vacation days (earned - taken)
+          type: number
+          description: Available vacation days (earned - taken - sold)
         daysUntilNextVacation:
-          type: integer
-          description: Days until next vacation period starts (or 0 if vacation is now due)
+          type: number
+          description: Days until the next accrual anniversary (the day the balance grows again)
         isOnVacation:
           type: boolean
         nextVacationStart:
           type: [string, 'null']
           format: date
+        eligibleForVacation:
+          type: boolean
+          description: Whether the employee already reached the minimum balance to request a vacation
+        firstEligibilityDate:
+          type: string
+          format: date
+          description: First date on which the employee reached the minimum balance
+        daysSold:
+          type: number
+          description: Vacation days already sold by the employee
 
     VacationSale:
       type: object
@@ -703,6 +1081,29 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    ListVacationSalesResponse:
+      type: object
+      required: [vacationSales]
+      properties:
+        vacationSales:
+          type: array
+          items:
+            $ref: "#/components/schemas/VacationSale"
+
+    CreateVacationSaleBody:
+      type: object
+      required: [daysSold, saleDate]
+      properties:
+        daysSold:
+          type: integer
+          minimum: 1
+          description: Sold vacation days. It cannot exceed the current balance nor one third of the accrual period (10 of 30 days).
+        saleDate:
+          type: string
+          format: date
+        notes:
+          type: [string, 'null']
 
     EmployeeDetail:
       type: object
@@ -815,6 +1216,18 @@ components:
           type: string
           format: date
 
+    UpdateEmployeePasswordBody:
+      type: object
+      required: [newPassword]
+      properties:
+        currentPassword:
+          type: string
+          description: Current password. Required when the employee changes their own password.
+        newPassword:
+          type: string
+          minLength: 10
+          description: New password. It must follow the password policy (at least 10 characters, 3 of the 4 character groups and it cannot contain the e-mail of the account).
+
     VacationItem:
       type: object
       required: [id, employeeId, startDate, endDate, durationDays, notes, status, createdAt]
@@ -849,6 +1262,73 @@ components:
           items:
             $ref: "#/components/schemas/VacationItem"
 
+    VacationWithEmployee:
+      type: object
+      required: [id, employeeId, startDate, endDate, durationDays, notes, status, createdAt, employeeName, employeeDepartment]
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        durationDays:
+          type: integer
+        notes:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        createdAt:
+          type: string
+          format: date-time
+        employeeName:
+          type: [string, 'null']
+        employeeDepartment:
+          type: [string, 'null']
+
+    ListAllVacationsResponse:
+      type: object
+      required: [vacations]
+      properties:
+        vacations:
+          type: array
+          items:
+            $ref: "#/components/schemas/VacationWithEmployee"
+
+    Notification:
+      type: object
+      required: [id, userId, message, read, vacationId, employeeId, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        message:
+          type: string
+        read:
+          type: boolean
+        vacationId:
+          type: [integer, 'null']
+        employeeId:
+          type: [integer, 'null']
+        createdAt:
+          type: string
+          format: date-time
+
+    ListNotificationsResponse:
+      type: object
+      required: [notifications]
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+
     UpdateVacationStatusBody:
       type: object
       required: [status]
@@ -858,6 +1338,19 @@ components:
           enum: [approved, rejected]
 
     CreateVacationBody:
+      type: object
+      required: [startDate, endDate]
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        notes:
+          type: [string, 'null']
+
+    UpdateVacationBody:
       type: object
       required: [startDate, endDate]
       properties:

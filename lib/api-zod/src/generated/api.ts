@@ -50,6 +50,21 @@ export const LogoutBrowserSessionHeader = zod.object({
 });
 
 /**
+ * Deletes the session record and clears the session cookie without redirecting the browser. This is the preferred way to sign out.
+ * @summary End the current session
+ */
+export const LogoutSessionHeader = zod.object({
+  Authorization: zod
+    .string()
+    .optional()
+    .describe("Opaque session token — `Bearer <sid>`."),
+});
+
+export const LogoutSessionResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
  * @summary List the external login providers configured in the API
  */
 export const ListAuthProvidersResponse = zod.object({
@@ -135,14 +150,30 @@ export const ListEmployeesResponse = zod.object({
       createdAt: zod.coerce.date(),
       vacationBalanceDays: zod
         .number()
-        .describe("Available vacation days (earned - taken)"),
+        .describe("Available vacation days (earned - taken - sold)"),
       daysUntilNextVacation: zod
         .number()
         .describe(
-          "Days until next vacation period starts (or 0 if vacation is now due)",
+          "Days until the next accrual anniversary (the day the balance grows again)",
         ),
       isOnVacation: zod.boolean(),
       nextVacationStart: zod.coerce.date().nullable(),
+      eligibleForVacation: zod
+        .boolean()
+        .optional()
+        .describe(
+          "Whether the employee already reached the minimum balance to request a vacation",
+        ),
+      firstEligibilityDate: zod.coerce
+        .date()
+        .optional()
+        .describe(
+          "First date on which the employee reached the minimum balance",
+        ),
+      daysSold: zod
+        .number()
+        .optional()
+        .describe("Vacation days already sold by the employee"),
     }),
   ),
 });
@@ -296,6 +327,138 @@ export const CreateVacationBody = zod.object({
 });
 
 /**
+ * Changes the password of the account linked to the employee. The employee may change their own password (sending `currentPassword`) and managers may change the password of any employee. Changing the password revokes every other session of the account and invalidates the pending password reset tokens of that account.
+ * @summary Change the password of an employee
+ */
+export const UpdateEmployeePasswordParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const updateEmployeePasswordBodyNewPasswordMin = 10;
+
+export const UpdateEmployeePasswordBody = zod.object({
+  currentPassword: zod
+    .string()
+    .optional()
+    .describe(
+      "Current password. Required when the employee changes their own password.",
+    ),
+  newPassword: zod
+    .string()
+    .min(updateEmployeePasswordBodyNewPasswordMin)
+    .describe(
+      "New password. It must follow the password policy (at least 10 characters, 3 of the 4 character groups and it cannot contain the e-mail of the account).",
+    ),
+});
+
+export const UpdateEmployeePasswordResponse = zod.object({
+  message: zod.string(),
+});
+
+/**
+ * @summary List the vacation days sold by an employee
+ */
+export const ListEmployeeVacationSalesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListEmployeeVacationSalesResponse = zod.object({
+  vacationSales: zod.array(
+    zod.object({
+      id: zod.number(),
+      employeeId: zod.number(),
+      daysSold: zod.number(),
+      saleDate: zod.coerce.date(),
+      notes: zod.string().nullish(),
+      createdAt: zod.coerce.date().optional(),
+    }),
+  ),
+});
+
+/**
+ * Registers the sale of vacation days of an employee. The sold amount cannot exceed the current balance and is limited to one third of the accrual period (10 of 30 days) per operation.
+ * @summary Register a sale of vacation days for an employee (managers only)
+ */
+export const CreateVacationSaleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CreateVacationSaleBody = zod.object({
+  daysSold: zod
+    .number()
+    .min(1)
+    .describe(
+      "Sold vacation days. It cannot exceed the current balance nor one third of the accrual period (10 of 30 days).",
+    ),
+  saleDate: zod.coerce.date(),
+  notes: zod.string().nullish(),
+});
+
+/**
+ * Deletes a vacation sale and returns the sold days to the balance of the employee. The record is located by its own `saleId`; the `id` of the path is the employee the sale belongs to and is not used to filter the deletion.
+ * @summary Delete a vacation sale record (managers only)
+ */
+export const DeleteVacationSaleParams = zod.object({
+  id: zod.coerce.number(),
+  saleId: zod.coerce.number(),
+});
+
+/**
+ * Lists every vacation record, including the name and the department of the employee it belongs to.
+ * @summary List all vacations
+ */
+export const ListVacationsQueryParams = zod.object({
+  status: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Filters the list by status (`pending`, `approved` or `rejected`). When omitted, every status is returned.",
+    ),
+});
+
+export const ListVacationsResponse = zod.object({
+  vacations: zod.array(
+    zod.object({
+      id: zod.number(),
+      employeeId: zod.number(),
+      startDate: zod.coerce.date(),
+      endDate: zod.coerce.date(),
+      durationDays: zod.number(),
+      notes: zod.string().nullable(),
+      status: zod.enum(["pending", "approved", "rejected"]),
+      createdAt: zod.coerce.date(),
+      employeeName: zod.string().nullable(),
+      employeeDepartment: zod.string().nullable(),
+    }),
+  ),
+});
+
+/**
+ * Edits the period of a vacation request. Only the employee that owns the request can edit it and only while the request is still pending. The new period cannot overlap another pending or approved vacation of the same employee.
+ * @summary Edit a pending vacation request
+ */
+export const UpdateVacationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateVacationBody = zod.object({
+  startDate: zod.coerce.date(),
+  endDate: zod.coerce.date(),
+  notes: zod.string().nullish(),
+});
+
+export const UpdateVacationResponse = zod.object({
+  id: zod.number(),
+  employeeId: zod.number(),
+  startDate: zod.coerce.date(),
+  endDate: zod.coerce.date(),
+  durationDays: zod.number(),
+  notes: zod.string().nullable(),
+  status: zod.enum(["pending", "approved", "rejected"]),
+  createdAt: zod.coerce.date(),
+});
+
+/**
  * @summary Delete a vacation period
  */
 export const DeleteVacationParams = zod.object({
@@ -385,14 +548,30 @@ export const GetMyEmployeeResponse = zod.object({
       createdAt: zod.coerce.date(),
       vacationBalanceDays: zod
         .number()
-        .describe("Available vacation days (earned - taken)"),
+        .describe("Available vacation days (earned - taken - sold)"),
       daysUntilNextVacation: zod
         .number()
         .describe(
-          "Days until next vacation period starts (or 0 if vacation is now due)",
+          "Days until the next accrual anniversary (the day the balance grows again)",
         ),
       isOnVacation: zod.boolean(),
       nextVacationStart: zod.coerce.date().nullable(),
+      eligibleForVacation: zod
+        .boolean()
+        .optional()
+        .describe(
+          "Whether the employee already reached the minimum balance to request a vacation",
+        ),
+      firstEligibilityDate: zod.coerce
+        .date()
+        .optional()
+        .describe(
+          "First date on which the employee reached the minimum balance",
+        ),
+      daysSold: zod
+        .number()
+        .optional()
+        .describe("Vacation days already sold by the employee"),
     }),
     zod.null(),
   ]),
@@ -413,4 +592,40 @@ export const RegisterAsEmployeeBody = zod.object({
   role: zod.string().min(1),
   department: zod.string().min(1),
   hireDate: zod.coerce.date(),
+});
+
+/**
+ * Returns the 30 most recent notifications of the authenticated user, newest first.
+ * @summary List the notifications of the current user
+ */
+export const ListNotificationsResponse = zod.object({
+  notifications: zod.array(
+    zod.object({
+      id: zod.number(),
+      userId: zod.string(),
+      message: zod.string(),
+      read: zod.boolean(),
+      vacationId: zod.number().nullable(),
+      employeeId: zod.number().nullable(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Mark every notification of the current user as read
+ */
+export const MarkAllNotificationsAsReadResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Mark a single notification of the current user as read
+ */
+export const MarkNotificationAsReadParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const MarkNotificationAsReadResponse = zod.object({
+  ok: zod.boolean(),
 });

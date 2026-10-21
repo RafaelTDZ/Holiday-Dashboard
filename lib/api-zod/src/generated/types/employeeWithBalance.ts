@@ -13,11 +13,17 @@ export interface EmployeeWithBalance {
   department: string;
   hireDate: Date;
   createdAt: Date;
-  /** Available vacation days (earned - taken) */
+  /** Available vacation days (earned - taken - sold) */
   vacationBalanceDays: number;
-  /** Days until next vacation period starts (or 0 if vacation is now due) */
+  /** Days until the next accrual anniversary (the day the balance grows again) */
   daysUntilNextVacation: number;
   isOnVacation: boolean;
   /** @nullable */
   nextVacationStart: Date | null;
+  /** Whether the employee already reached the minimum balance to request a vacation */
+  eligibleForVacation?: boolean;
+  /** First date on which the employee reached the minimum balance */
+  firstEligibilityDate?: Date;
+  /** Vacation days already sold by the employee */
+  daysSold?: number;
 }
