@@ -29,7 +29,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <SidebarHeader className="h-16 flex items-center px-4 border-b">
             <div className="flex items-center gap-2 font-bold text-lg text-sidebar-foreground">
               <img
-                src="/favicon.svg"
+                src={import.meta.env.BASE_URL + "favicon.svg"}
                 alt=""
                 className="h-6 w-6 object-contain"
               />
