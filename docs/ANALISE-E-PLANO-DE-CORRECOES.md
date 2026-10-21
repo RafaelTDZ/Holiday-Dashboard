@@ -820,14 +820,14 @@ Verificação realizada em 21/10/2026, após `git fetch origin --prune`.
 | ID | Área | Severidade | Esforço | Prioridade |
 |---|---|---|---|---|
 | SEC-01 | Cadastro aberto (allowlist de domínio aplicada) | Crítica | M | P0 |
-| SEC-02 | Exclusão de férias sem authz | Crítica | S | P0 |
-| SEC-03 | Sessão de usuário removido | Alta | S | P0 |
-| SEC-04 | TTL/revogação de sessão e reset | Alta | M | P0 |
-| SEC-05 | Rate limit/senha fraca | Alta | M | P0 |
+| SEC-02 | Exclusão de férias sem authz | Crítica | S | Resolvido |
+| SEC-03 | Sessão de usuário removido | Alta | S | Resolvido |
+| SEC-04 | TTL/revogação de sessão e reset | Alta | M | Resolvido |
+| SEC-05 | Rate limit/senha fraca | Alta | M | Resolvido |
 | SEC-06 | CORS permissivo | Média | S | P1 |
-| SEC-07 | Sem error handler JSON | Média | S | P1 |
+| SEC-07 | Sem error handler JSON | Média | S | Resolvido |
 | SEC-08 | Logout via GET | Baixa | S | P2 |
-| SEC-09 | Seed em produção | Média | S | P0 |
+| SEC-09 | Seed em produção | Média | S | Resolvido |
 | BIZ-01 | Regra de 1/3 ausente | Alta | M | P1 |
 | BIZ-02 | Divergência no acúmulo | Alta | S | P0 (decisão) |
 | BIZ-03 | `daysUntilNextVacation` confuso | Média | S | P1 |
@@ -850,7 +850,7 @@ Verificação realizada em 21/10/2026, após `git fetch origin --prune`.
 | OPS-01 | Sem paginação | Média | L | P2 |
 | OPS-02 | Health sem banco | Baixa | S | P2 |
 | OPS-03 | Observabilidade | Baixa | M | P2 |
-| DX-01 | Sem testes | Alta | L | P0/P1 |
+| DX-01 | Sem testes (parcial: 35 testes unitários) | Alta | L | P0/P1 |
 | DX-02 | Sem lint/format | Média | S | P1 |
 | DX-03 | Sem CI | Alta | S | P1 |
 | DX-04 | Sem `dev` root | Baixa | S | P2 |
@@ -880,23 +880,30 @@ Legenda de esforço: **S** = até 2h; **M** = 2–8h; **L** = 1–3 dias.
 
 **Objetivo:** eliminar acessos indevidos e reduzir superfície de ataque sem alterar a experiência principal.
 
-- [ ] **SEC-02:** corrigir autorização de `DELETE /vacations/:id` e adicionar testes.
-- [ ] **SEC-03:** invalidar sessão quando o usuário não existir mais.
+- [x] **SEC-02:** corrigir autorização de `DELETE /vacations/:id` e adicionar testes. — `3260e8d`
+- [x] **SEC-03:** invalidar sessão quando o usuário não existir mais. — `362753b`
 - [ ] **SEC-01:** concluir o bloqueio de cadastro (convite/allowlist por pessoa e visibilidade de `GET /employees`); a allowlist de domínio (`ALLOWED_EMAIL_DOMAIN`) já está aplicada.
-- [ ] **SEC-04:** adicionar TTL em `sessions.expire` e `password_reset_tokens.expiresAt`; hashear tokens; revogar sessões ao trocar/resetar senha.
-- [ ] **SEC-05:** adicionar rate limit nas rotas de autenticação e elevar a política de senha.
-- [ ] **SEC-09:** impedir seed de demonstração em produção.
-- [ ] **DX-01 (parcial):** criar testes de autorização e de ciclo de sessão.
+- [x] **SEC-04:** adicionar TTL em `sessions.expire` e `password_reset_tokens.expiresAt`; hashear tokens; revogar sessões ao trocar/resetar senha. — `90ce077`
+- [x] **SEC-05:** adicionar rate limit nas rotas de autenticação e elevar a política de senha. — `b0a1f0c`
+- [x] **SEC-09:** impedir seed de demonstração em produção. — `ebe4982`
+- [x] **DX-01 (parcial):** criar testes de autorização e de ciclo de sessão. — 35 testes em `artifacts/api-server/tests/` (vitest na raiz)
 
 **Arquivos prováveis:**
 `artifacts/api-server/src/routes/vacations.ts`, `auth.ts`, `employees.ts`, `app.ts`, `middlewares/authMiddleware.ts`, `lib/db/src/models/session.ts`, `lib/db/src/models/password-reset-token.ts`, `lib/db/src/seed.ts`, `lib/api-spec/openapi.yaml`.
 
 **Critérios de aceite da fase:**
-- Testes de autorização passam.
-- Usuário removido recebe 401.
-- Rate limit responde 429.
-- Seed não roda em produção.
-- `pnpm typecheck` e `pnpm test` passam.
+- [x] Testes de autorização passam. (35/35 em `pnpm run test`)
+- [x] Usuário removido recebe 401. (verificado com o usuário removido do Mongo)
+- [x] Rate limit responde 429. (verificado: 30/5 min no login, 10/15 min na recuperação)
+- [x] Seed não roda em produção. (`SEED_DEMO_DATA` + `ALLOW_DEMO_SEED`, nunca em `VERCEL_ENV=production`)
+- [x] `pnpm typecheck` e `pnpm test` passam.
+
+**Entregas adicionais da fase (fora do plano original):**
+- `app.set("trust proxy", 1)` — sem isso o `req.ip` seria o do proxy na Vercel e o rate limiter trataria todos os usuários como um só.
+- Política de senha replicada no frontend (`artifacts/vacation-dashboard/src/utils/password.ts`) para o formulário não enviar senha curta e receber 400 do servidor.
+- `minLength` do contrato OpenAPI elevado de 6 para 10 (clientes regenerados).
+- Senha do seed de demonstração alinhada à nova política (`Férias@2026`).
+- `syncModelIndexes()` no boot da API — o índice `expire_1` existente (sem TTL) impedia a criação do TTL (`IndexOptionsConflict`).
 
 ---
 
@@ -1121,3 +1128,4 @@ pnpm format:check
 | 21/10/2026 | Inclusão da verificação de branches, worktrees e do achado `GIT-01` | Análise técnica |
 | 21/10/2026 | Merge fast-forward da branch v0 (`af913f7`), exclusão da branch remota e remoção do worktree `cosmic-panda`; documento atualizado | Análise técnica |
 | 21/10/2026 | Allowlist de domínio (`ALLOWED_EMAIL_DOMAIN`), login em duas etapas e login com Google Workspace; `SEC-01` parcialmente mitigado | Análise técnica |
+| 21/10/2026 | Fase 1 (P0) executada com subagentes: `SEC-02`, `SEC-03`, `SEC-04`, `SEC-05`, `SEC-07`, `SEC-09` e `DX-01` (35 testes) | Análise técnica |
